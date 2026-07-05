@@ -1,0 +1,35 @@
+name: Build SwiftFolderPro EXE
+
+on:
+  push:
+    branches: [ main ] # سيشتغل البناء تلقائياً كلما عدلت الكود
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11' # سنستخدم نسخة 3.11 المستقرة والآمنة تماماً!
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        # إذا كان كودك الجديد يستخدم مكتبات أخرى مثل requests أو customtkinter اكتبها هنا، مثلاً:
+        # pip install requests pillow customtkinter
+
+    - name: Build EXE with PyInstaller
+      run: |
+        pyinstaller --noconfirm --onefile --windowed --name "SwiftFolderPro" --exclude-module tkinter.test --exclude-module unittest --clean "new1.py"
+
+    - name: Upload EXE Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: SwiftFolderPro-EXE
+        path: dist/SwiftFolderPro.exe
