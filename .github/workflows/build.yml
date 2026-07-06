@@ -24,10 +24,10 @@ jobs:
 
     - name: Build EXE with PyInstaller
       run: |
-        pyinstaller --noconfirm --onefile --windowed --name "SwiftFolderPro" --exclude-module tkinter.test --exclude-module unittest --clean "new1.py"
+        pyinstaller --noconfirm --onedir --windowed --name "SwiftFolderPro" --exclude-module tkinter.test --exclude-module unittest --clean "new1.py"
 
     - name: Upload EXE Artifact
       uses: actions/upload-artifact@v4
       with:
         name: SwiftFolderPro-EXE
-        path: dist/SwiftFolderPro.exe
+        path: dist/SwiftFolderPro/
