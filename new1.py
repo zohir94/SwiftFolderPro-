@@ -292,7 +292,7 @@ class SwiftFolderPro(ctk.CTk):
                 "cancel_btn": "إلغاء",
                 "ok_btn": "حسناً",
                 "login_title": "تسجيل الدخول",
-                "login_msg": ": المرور كلمة إدخال الرجاء ",
+                "login_msg": ": الرجاء إدخال كلمة المرور ",
                 "msg_error": "خطأ",
                 "wrong_pass": ": المحاولة إعادة الرجاء  ,خاطئة المرور كلمة  ⚠️ ",
                 "enter_customer_name": "ادخل اسم الزبون",
@@ -487,6 +487,7 @@ class SwiftFolderPro(ctk.CTk):
                 if messagebox.askyesno("تحديث جديد متوفر", f"يوجد إصدار جديد للبرنامج ({latest_version}).\nهل تريد تحميل وتثبيت التحديث الآن؟"):
                     
                     exe_url = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/main/SwiftFolderPro.exe"
+                              
                     
                     # اسم الملف المؤقت أثناء التحميل بجانب البرنامج الحالي
                     output_path = "SwiftFolderPro_New.exe" 
@@ -807,7 +808,7 @@ class SwiftFolderPro(ctk.CTk):
             width=35,
             height=35,
             corner_radius=10,
-            fg_color="#2eb85c",     # اللون الأخضر الموجود في الصورة
+            fg_color="#2eb85c",     # اللون الأخضر الموجود في الصورة 
             hover_color="#1e7e34",
             text_color="white",
             font=("Cairo", 15, "bold"),
@@ -1259,7 +1260,7 @@ class SwiftFolderPro(ctk.CTk):
                     widget.pack_forget()
                 
                 # نص حالة الإرسال الحالي
-                lbl_status = ctk.CTkLabel(email_window, text="جاري الاتصال بالسيرفر...", text_color=COLORS["text_primary"], font=ctk.CTkFont(size=14, weight="bold"))
+                lbl_status = ctk.CTkLabel(email_window, text="بالسيرفر الاتصال جاري...", text_color=COLORS["text_primary"], font=ctk.CTkFont(size=14, weight="bold"))
                 lbl_status.pack(pady=(40, 10))
                 
                 # 🌟 شريط تحميل تدريجي ينمو شيئاً فشيئاً ولا يتكرر بشكل وهمي
@@ -1331,7 +1332,7 @@ class SwiftFolderPro(ctk.CTk):
                     server.quit()
                     
                     # 🌟 اكتمال الإرسال 100% بنجاح تام ويغلق التحميل فوراً للذهاب لنافذة النجاح
-                    update_progress(1.0, "تمت العملية بنجاح!")
+                    update_progress(1.0, "بنجاح العملية تمت")
                     time.sleep(0.4)
 
                     # تنظيف الواجهة لإظهار نجاح الإرسال المبهج كما طلبت بمجرد الوصول لـ 100%
@@ -1343,7 +1344,7 @@ class SwiftFolderPro(ctk.CTk):
                     lbl_icon = ctk.CTkLabel(email_window, text="✅", font=ctk.CTkFont(size=45), text_color="#2ed573")
                     lbl_icon.pack(pady=(40, 10))
 
-                    lbl_success = ctk.CTkLabel(email_window, text="تم الإرسال بنجاح تام!", text_color=COLORS["text_primary"], font=ctk.CTkFont(size=15, weight="bold"))
+                    lbl_success = ctk.CTkLabel(email_window, text="بنجاح الإرسال تم", text_color=COLORS["text_primary"], font=ctk.CTkFont(size=16, weight="bold"))
                     lbl_success.pack(pady=10)
 
                     btn_ok = ctk.CTkButton(email_window, text="موافق", width=120, height=35, fg_color=COLORS["accent_primary"], hover_color=COLORS["accent_hover"], command=email_window.destroy)
@@ -1363,7 +1364,7 @@ class SwiftFolderPro(ctk.CTk):
                     
                 email_window.title("مراجعة بيانات الإرسال")
                 
-                lbl_rev_title = ctk.CTkLabel(email_window, text="📋 مراجعة وتأكيد البيانات", text_color=COLORS["text_primary"], font=ctk.CTkFont(size=14, weight="bold"))
+                lbl_rev_title = ctk.CTkLabel(email_window, text="📋 البيانات و تأكيد مراجعة", text_color=COLORS["text_primary"], font=ctk.CTkFont(size=16, weight="bold"))
                 lbl_rev_title.pack(pady=(10, 5))
                 
                 # 🌟 إضافة شريط تمرير من الأعلى إلى الأسفل في حال كانت معلومات الملفات كثيرة لمنع كراش الواجهة
@@ -1395,11 +1396,11 @@ class SwiftFolderPro(ctk.CTk):
                 btn_frame = ctk.CTkFrame(email_window, fg_color="transparent")
                 btn_frame.pack(side="bottom", pady=15, fill="x")
                 
-                btn_back = ctk.CTkButton(btn_frame, text="⬅️ السابق", width=110, height=32, fg_color="#718093", hover_color="#57606f", command=lambda: show_input_stage(receiver_email))
+                btn_back = ctk.CTkButton(btn_frame, text="السابق", width=110, height=32, fg_color="#718093", hover_color="#57606f", command=lambda: show_input_stage(receiver_email))
                 btn_back.pack(side="left", padx=25)
                 
                 btn_final_send = ctk.CTkButton(
-                    btn_frame, text="إرسال الآن 🚀", width=110, height=32,
+                    btn_frame, text="إرسال الآن", width=110, height=32,
                     fg_color=COLORS["accent_primary"], hover_color=COLORS["accent_hover"],
                     command=lambda: threading.Thread(target=send_email_process, args=(receiver_email,), daemon=True).start()
                 )
@@ -1429,12 +1430,12 @@ class SwiftFolderPro(ctk.CTk):
                 for widget in email_window.winfo_children():
                     widget.pack_forget()
                     
-                email_window.title("إرسال عبر Gmail")
+                email_window.title("Gmail")
                 
-                lbl_title_input = ctk.CTkLabel(email_window, text="إرسال الملفات المحددة عبر البريد", text_color=COLORS["text_primary"], font=ctk.CTkFont(size=14, weight="bold"))
+                lbl_title_input = ctk.CTkLabel(email_window, text="إلكتروني البريد إدخال الرجاء", text_color=COLORS["text_primary"], font=ctk.CTkFont(size=16, weight="bold"))
                 lbl_title_input.pack(pady=(40, 15))
                 
-                entry_receiver_input = ctk.CTkEntry(email_window, placeholder_text="الرجاء إدخال البريد الإلكتروني للمستلم...", width=340, height=38, corner_radius=10)
+                entry_receiver_input = ctk.CTkEntry(email_window, placeholder_text="للمستلم الإلكتروني البريد إدخال الرجاء...", width=340, height=38, corner_radius=10)
                 entry_receiver_input.pack(pady=10)
                 
                 if default_text:
@@ -1443,12 +1444,12 @@ class SwiftFolderPro(ctk.CTk):
                 def go_to_review():
                     receiver_email = entry_receiver_input.get().strip()
                     if not receiver_email or "@" not in receiver_email:
-                        messagebox.showerror("خطأ", "الرجاء إدخال بريد إلكتروني صحيح ومكتمل!", parent=email_window)
+                        messagebox.showerror("خطأ", "ومكتمل! صحيح إلكتروني بريد إدخال الرجاء", parent=email_window)
                         return
                     show_review_stage(receiver_email)
                 
                 btn_next = ctk.CTkButton(
-                    email_window, text="التالي (مراجعة البيانات) ➡️", width=200, height=35,
+                    email_window, text="التالي", width=200, height=35,
                     fg_color=COLORS["accent_primary"], hover_color=COLORS["accent_hover"],
                     corner_radius=10,
                     command=go_to_review
