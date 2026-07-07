@@ -472,8 +472,9 @@ class SwiftFolderPro(ctk.CTk):
         
     #-----------------------------------------------------------------------------------------------------------------------------------    
     def start_update_check(self):
-        # تشغيل الفحص في خلفية البرنامج لكي لا تتجمد الواجهة عند الفتح
-        threading.Thread(target=self.check_for_updates, daemon=True).start()
+        # تأخير إطلاق خيط الفحص لمدة 5000 ملي ثانية (5 ثوانٍ) بعد ظهور الواجهة
+        # هذا يضمن أن يفتح البرنامج فوراً في ثانية واحدة، ثم يبحث عن التحديث في الخلفية دون أي تأثير
+        self.after(5000, lambda: threading.Thread(target=self.check_for_updates, daemon=True).start())
 
     def check_for_updates(self):
         try:
