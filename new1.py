@@ -487,7 +487,7 @@ class SwiftFolderPro(ctk.CTk):
             if latest_version != self.CURRENT_VERSION:
                 if messagebox.askyesno("تحديث جديد متوفر", f"يوجد إصدار جديد للبرنامج ({latest_version}).\nهل تريد تحميل وتثبيت التحديث الآن؟"):
                     
-                    exe_url = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/main/SwiftFolderPro.exe"
+                    exe_url = "https://github.com/zohir94/SwiftFolderPro-/releases/download/1.0.1/SwiftFolderPro.zip"
                               
                     
                     # اسم الملف المؤقت أثناء التحميل بجانب البرنامج الحالي
