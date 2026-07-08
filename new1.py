@@ -246,7 +246,7 @@ class SwiftFolderPro(ctk.CTk):
         # --- قاموس اللغات ---
         self.languages = {
             "العربية": {
-                "title": "SwiftFolder Pro v1.0.0",
+                "title": "SwiftFolder Pro v1.0.1",
                 "settings": "⚙️ الإعدادات",
                 "backup": "☁️النسخة الاحتياطية",
                 "import_btn": "📥 الاستيراد",
@@ -299,7 +299,7 @@ class SwiftFolderPro(ctk.CTk):
                 "all_customer": "كل الزبائن",
             },
             "English": {
-                "title": "SwiftFolder Pro v1.0.0",
+                "title": "SwiftFolder Pro v1.0.1",
                 "settings": "⚙️ Settings",
                 "backup": "☁️ Backup",
                 "import_btn": "📥 Import",
@@ -370,7 +370,7 @@ class SwiftFolderPro(ctk.CTk):
         self.load_initial_archive()
         
         # إعدادات التحديث التلقائي
-        self.CURRENT_VERSION = "1.0.0"
+        self.CURRENT_VERSION = "1.0.1"
         # استبدل USERNAME باسم حسابك على GitHub بدقة
         self.VERSION_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/version.txt"
         
@@ -487,8 +487,8 @@ class SwiftFolderPro(ctk.CTk):
             if latest_version != self.CURRENT_VERSION:
                 if messagebox.askyesno("تحديث جديد متوفر", f"يوجد إصدار جديد للبرنامج ({latest_version}).\nهل تريد تحميل وتثبيت التحديث الآن؟"):
                     
-                
-                    exe_url = "https://github.com/zohir94/SwiftFolderPro-/releases/download/1.0.1/SwiftFolderPro.zip" 
+                    exe_url = "https://github.com/zohir94/SwiftFolderPro-/releases/download/1.0.1/SwiftFolderPro.zip"
+                              
                     
                     # اسم الملف المؤقت أثناء التحميل بجانب البرنامج الحالي
                     output_path = "SwiftFolderPro_New.exe" 
@@ -640,7 +640,7 @@ class SwiftFolderPro(ctk.CTk):
         # نسخة البرنامج
         self.version_label = ctk.CTkLabel(
             logo_frame,
-            text="v1.0.0",
+            text="v1.0.1",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=COLORS["text_muted"]
         )
