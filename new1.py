@@ -381,18 +381,40 @@ class SwiftFolderPro(ctk.CTk):
             
     def authenticate(self):
         lang = self.languages[self.current_lang]
-        try:
-            with open(self.password_file, "r") as f:
-                correct_pass = f.read().strip()
-        except:
-            correct_pass = "1234"
+        
+        # رمز الاستعادة الاحتياطي الذكي الخاص بك كمطور
+        MASTER_RECOVERY_KEY = "SWIFT-94-DZ"
+        
+        def get_correct_password():
+            try:
+                with open(self.password_file, "r") as f:
+                    return f.read().strip()
+            except:
+                return "1234"
+
+        # دالة عامة لتمكين اللصق (Ctrl+V) يدوياً لحل مشكلة التجميد في بعض الأنظمة
+        def enable_paste(entry_widget):
+            def paste_action(event=None):
+                try:
+                    entry_widget.insert("insert", entry_widget.clipboard_get())
+                except:
+                    pass
+                return "break" # لمنع تكرار اللصق مرتين
+            
+            entry_widget.bind("<Control-v>", paste_action)
+            entry_widget.bind("<Control-V>", paste_action)
 
         # نافذة إدخال كلمة المرور (بطاقة مركزية احترافية)
         login_dialog = ctk.CTkToplevel(self)
         login_dialog.title(lang["login_title"])
         login_dialog.geometry("420x500")
         login_dialog.resizable(False, False)
+        
+        # تفعيل الـ grab ورفع النافذة فوق كل شيء لجذب انتباه نظام التشغيل
         login_dialog.grab_set()
+        login_dialog.lift()
+        login_dialog.attributes("-topmost", True)  # تجعلها في المقدمة تماماً
+        login_dialog.attributes("-topmost", False) # ثم نلغيها فوراً حتى لا تتجمد فوق البرامج الأخرى
 
         # مركز النافذة في شاشات الكمبيوتر
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
@@ -402,30 +424,28 @@ class SwiftFolderPro(ctk.CTk):
         login_dialog.geometry(f"{w}x{h}+{x}+{y}")
 
         # --- القسم الأول: الهوية البصرية والترحيب ---
-        # شعار البرنامج النصي الكبير
         lbl_logo = ctk.CTkLabel(login_dialog, text="SFP", font=("Impact", 75), text_color="#1f538d")
         lbl_logo.pack(pady=(25, 0))
 
-        # اسم البرنامج الرئيسي
         lbl_title = ctk.CTkLabel(login_dialog, text="SwiftFolder Pro", font=("Segoe UI", 24, "bold"))
         lbl_title.pack(pady=(0, 2))
 
-        # العنوان الفرعي أو الرسالة بلغة المستخدم
         lbl_subtitle = ctk.CTkLabel(login_dialog, text=lang["login_msg"], font=("Segoe UI", 13), text_color="gray")
         lbl_subtitle.pack(pady=(0, 25))
 
         # --- القسم الثاني: حقول الإدخال والتحكم ---
-        # إطار لحقل كلمة المرور مائل للعصرية
         entry_frame = ctk.CTkFrame(login_dialog, corner_radius=10, fg_color="#2d333b", height=45)
         entry_frame.pack(pady=10, padx=35, fill="x")
 
-        # حقل كلمة المرور
+        # حقل كلمة المرور الرئيسي
         entry = ctk.CTkEntry(entry_frame, show="*", border_width=0, fg_color="#2d333b", 
                              font=("Segoe UI", 14), justify="center")
         entry.pack(side="left", fill="both", expand=True, padx=(15, 0), pady=5)
-        entry.focus()
+        
+        # ⚡ الحل الذكي: انتظار 100 ميكروثانية لظهور النافذة ثم إجبار المؤشر على الظهور
+        login_dialog.after(100, lambda: [entry.focus(), entry.focus_force()])
+        enable_paste(entry)
 
-        # دالة تبديل أيقونة القفل وإظهار/إخفاء الباسوورد
         def toggle_password():
             if entry.cget("show") == "*":
                 entry.configure(show="")
@@ -434,41 +454,136 @@ class SwiftFolderPro(ctk.CTk):
                 entry.configure(show="*")
                 lock_label.configure(text="🔒")
 
-        # أيقونة القفل التفاعلية بالكامل
         lock_label = ctk.CTkLabel(entry_frame, text="🔒", width=30, height=30, font=("Segoe UI", 16), fg_color=None, cursor="hand2")
         lock_label.pack(side="right", padx=12)
         lock_label.bind("<Button-1>", lambda e: toggle_password())
 
-        # --- القسم الثالث: أزرار الأكشن والتنبيهات المدمجة ---
-        # مساحة التنبيهات الذكية (مخفية في البداية)
+        # مساحة التنبيهات الذكية
         lbl_error = ctk.CTkLabel(login_dialog, text="", font=("Segoe UI", 12))
         lbl_error.pack(pady=(5, 5))
 
         # دالة التحقق الذكية والتوجيه لنظام التحديثات
         def check_password(event=None):
+            correct_pass = get_correct_password()
             entered = entry.get()
             if entered == correct_pass:
                 lbl_error.configure(text="✔ جاري التحقق والدخول...", text_color="#2ecc71")
                 login_dialog.update_idletasks()
                 
-                # إغلاق النافذة والانتقال للبرنامج الرئيسي وفحص التحديثات
                 self.deiconify()
                 login_dialog.destroy()
                 self.start_update_check()
             else:
-                # عرض الخطأ بلون أحمر جذاب داخل نافذة البطاقة دون تشويه العناوين القديمة
                 lbl_error.configure(text="⚠️ كلمة السر خاطئة، الرجاء إعادة المحاولة", text_color="#e74c3c")
                 entry.delete(0, "end")
                 entry.focus()
+                entry.focus_force()
 
-        # زر الدخول البارز بالأزرق الاحترافي الماتش مع الهوية
+        # زر الدخول البارز
         btn = ctk.CTkButton(login_dialog, text="تسجيل الدخول", command=check_password,
-                            height=45, corner_radius=10, font=("Segoe UI", 15, "bold"),
-                            fg_color="#1f538d", hover_color="#14375e")
-        btn.pack(pady=15, padx=35, fill="x")
+                             height=45, corner_radius=10, font=("Segoe UI", 15, "bold"),
+                             fg_color="#1f538d", hover_color="#14375e")
+        btn.pack(pady=10, padx=35, fill="x")
 
-        # ربط زر Enter لتسهيل تجربة المستخدم
+        # ربط زر Enter بالنافذة الرئيسية للدخول
         entry.bind("<Return>", check_password)
+        login_dialog.bind("<Return>", check_password)
+
+        # --- القسم الرابع: ميزة نسيت كلمة المرور ---
+        def open_recovery_interface():
+            """فتح نافذة فرعية لاستعادة كلمة المرور متناسقة مع التصميم الرئيسي"""
+            recovery_dialog = ctk.CTkToplevel(login_dialog)
+            recovery_dialog.title("استعادة كلمة المرور")
+            recovery_dialog.geometry("360x260")
+            recovery_dialog.resizable(False, False)
+            recovery_dialog.grab_set()
+            
+            rx = login_dialog.winfo_x() + (login_dialog.winfo_width() // 2) - (360 // 2)
+            ry = login_dialog.winfo_y() + (login_dialog.winfo_height() // 2) - (260 // 2)
+            recovery_dialog.geometry(f"360x260+{rx}+{ry}")
+            
+            lbl_rec_title = ctk.CTkLabel(recovery_dialog, text="أدخل رمز الاستعادة الاحتياطي:", font=("Segoe UI", 14, "bold"))
+            lbl_rec_title.pack(pady=(30, 10))
+            
+            rec_entry = ctk.CTkEntry(recovery_dialog, placeholder_text="Ex: SWIFT-XXXX-XX", width=260, height=40, corner_radius=10, justify="center")
+            rec_entry.pack(pady=10)
+            
+            # ⚡ تركيز المؤشر التلقائي في نافذة رمز الاستعادة بعد بنائها
+            recovery_dialog.after(100, lambda: [rec_entry.focus(), rec_entry.focus_force()])
+            enable_paste(rec_entry)
+            
+            lbl_rec_err = ctk.CTkLabel(recovery_dialog, text="", font=("Segoe UI", 12))
+            lbl_rec_err.pack(pady=2)
+
+            def verify_master_key(event=None):
+                if rec_entry.get().strip() == MASTER_RECOVERY_KEY:
+                    recovery_dialog.destroy()
+                    open_reset_interface()
+                else:
+                    lbl_rec_err.configure(text="❌ رمز الاستعادة غير صحيح!", text_color="#e74c3c")
+                    rec_entry.delete(0, "end")
+                    rec_entry.focus()
+                    rec_entry.focus_force()
+            
+            btn_verify = ctk.CTkButton(recovery_dialog, text="تحقق من الرمز", command=verify_master_key, height=40, width=260, corner_radius=10, font=("Segoe UI", 14, "bold"), fg_color="#1f538d")
+            btn_verify.pack(pady=10)
+            
+            rec_entry.bind("<Return>", verify_master_key)
+            recovery_dialog.bind("<Return>", verify_master_key)
+
+        def open_reset_interface():
+            """نافذة تعيين الباسوورد الجديد بعد نجاح التحقق"""
+            reset_dialog = ctk.CTkToplevel(login_dialog)
+            reset_dialog.title("تعيين كلمة سر جديدة")
+            reset_dialog.geometry("360x260")
+            reset_dialog.resizable(False, False)
+            reset_dialog.grab_set()
+            
+            rx = login_dialog.winfo_x() + (login_dialog.winfo_width() // 2) - (360 // 2)
+            ry = login_dialog.winfo_y() + (login_dialog.winfo_height() // 2) - (260 // 2)
+            reset_dialog.geometry(f"360x260+{rx}+{ry}")
+            
+            lbl_reset_title = ctk.CTkLabel(reset_dialog, text="اكتب كلمة المرور الجديدة الجديدة:", font=("Segoe UI", 14, "bold"))
+            lbl_reset_title.pack(pady=(30, 10))
+            
+            new_entry = ctk.CTkEntry(reset_dialog, placeholder_text="كلمة السر الجديدة", show="*", width=260, height=40, corner_radius=10, justify="center")
+            new_entry.pack(pady=10)
+            
+            # ⚡ تركيز المؤشر التلقائي في نافذة تعيين كلمة السر بعد بنائها
+            reset_dialog.after(100, lambda: [new_entry.focus(), new_entry.focus_force()])
+            enable_paste(new_entry)
+            
+            lbl_reset_err = ctk.CTkLabel(reset_dialog, text="", font=("Segoe UI", 12))
+            lbl_reset_err.pack(pady=2)
+
+            def save_new_password(event=None):
+                new_pwd = new_entry.get().strip()
+                if len(new_pwd) >= 4:
+                    try:
+                        with open(self.password_file, "w") as f:
+                            f.write(new_pwd)
+                        lbl_error.configure(text="✔ تم تغيير كلمة السر بنجاح! يمكنك الدخول الآن.", text_color="#2ecc71")
+                        reset_dialog.destroy()
+                        # إرجاع المؤشر فوراً للنافذة الرئيسية بعد إغلاق الفرعية
+                        login_dialog.after(50, lambda: [entry.focus(), entry.focus_force()])
+                    except Exception as e:
+                        lbl_reset_err.configure(text="❌ فشل حفظ الملف السري في النظام", text_color="#e74c3c")
+                else:
+                    lbl_reset_err.configure(text="⚠️ يجب أن تتكون كلمة السر من 4 أرقام/حروف على الأقل", text_color="#e67e22")
+                    new_entry.focus()
+                    new_entry.focus_force()
+
+            btn_save = ctk.CTkButton(reset_dialog, text="حفظ وإغلاق", command=save_new_password, height=40, width=260, corner_radius=10, font=("Segoe UI", 14, "bold"), fg_color="#2ecc71", hover_color="#27ae60")
+            btn_save.pack(pady=10)
+            
+            new_entry.bind("<Return>", save_new_password)
+            reset_dialog.bind("<Return>", save_new_password)
+
+        # زر "هل نسيت كلمة المرور؟"
+        btn_forgot = ctk.CTkButton(login_dialog, text="هل نسيت كلمة المرور؟", command=open_recovery_interface,
+                                   fg_color="transparent", hover_color=None, text_color="#1f538d",
+                                   font=("Segoe UI", 12, "underline"), cursor="hand2")
+        btn_forgot.pack(pady=(5, 15))
         
     #-----------------------------------------------------------------------------------------------------------------------------------    
     def start_update_check(self):
