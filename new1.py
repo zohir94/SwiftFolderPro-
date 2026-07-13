@@ -246,7 +246,7 @@ class SwiftFolderPro(ctk.CTk):
         # --- قاموس اللغات ---
         self.languages = {
             "العربية": {
-                "title": "SwiftFolder Pro v1.0.1",
+                "title": "SwiftFolder Pro v1.0.2",
                 "settings": "⚙️ الإعدادات",
                 "backup": "☁️النسخة الاحتياطية",
                 "import_btn": "📥 الاستيراد",
@@ -299,7 +299,7 @@ class SwiftFolderPro(ctk.CTk):
                 "all_customer": "كل الزبائن",
             },
             "English": {
-                "title": "SwiftFolder Pro v1.0.1",
+                "title": "SwiftFolder Pro v1.0.2",
                 "settings": "⚙️ Settings",
                 "backup": "☁️ Backup",
                 "import_btn": "📥 Import",
@@ -370,7 +370,7 @@ class SwiftFolderPro(ctk.CTk):
         self.load_initial_archive()
         
         # إعدادات التحديث التلقائي
-        self.CURRENT_VERSION = "1.0.1"
+        self.CURRENT_VERSION = "1.0.2"
         # استبدل USERNAME باسم حسابك على GitHub بدقة
         self.VERSION_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/version.txt"
         
@@ -781,7 +781,7 @@ class SwiftFolderPro(ctk.CTk):
         # نسخة البرنامج
         self.version_label = ctk.CTkLabel(
             logo_frame,
-            text="v1.0.1",
+            text="v1.0.2",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=COLORS["text_muted"]
         )
