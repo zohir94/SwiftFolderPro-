@@ -602,11 +602,12 @@ class SwiftFolderPro(ctk.CTk):
             if latest_version != self.CURRENT_VERSION:
                 if messagebox.askyesno("تحديث جديد متوفر", f"يوجد إصدار جديد للبرنامج ({latest_version}).\nهل تريد تحميل وتثبيت التحديث الآن؟"):
                     
-                    exe_url = "https://github.com/zohir94/SwiftFolderPro-/releases/download/1.0.1/SwiftFolderPro.zip"
-                              
-                    
-                    # اسم الملف المؤقت أثناء التحميل بجانب البرنامج الحالي
-                    output_path = "SwiftFolderPro_New.exe" 
+                    # الرابط المباشر للملف (تأكد من رفعه كملف exe مباشر أو تحديث الرابط ليطابق مسارك)
+                    exe_url = "https://github.com/zohir94/SwiftFolderPro-/releases/download/latest/SwiftFolderPro.exe"
+                                      
+                    # سنحفظ الملف بنفس امتداده الأصلي الموجود في الرابط لتجنب تلف الملف
+                    file_extension = ".zip" if exe_url.endswith(".zip") else ".exe"
+                    output_path = f"SwiftFolderPro_New{file_extension}" 
                     
                     # --- إنشاء نافذة شريط التحميل المرئية ---
                     from tkinter import ttk
@@ -641,20 +642,45 @@ class SwiftFolderPro(ctk.CTk):
                     # دالة تشغيل التحميل والتحديث التلقائي
                     def download_thread():
                         try:
-                            # تحميل الملف الجديد باسم مؤقت أولاً
-                            urllib.request.urlretrieve(exe_url, output_path, reporthook=reporthook)
-                            progress_window.destroy() # غلق نافذة شريط التقدم
-                            
-                            # معرفة اسم ومسار ملف البرنامج الحالي المشغل الآن
                             import sys
                             import os
                             import subprocess
+                            import urllib.request
+                            import zipfile
+                            
+                            # ⚡ حل مشكلة الحظر: إضافة هيدر متصفح حقيقي لدالة urlretrieve الخاصة بـ GitHub
+                            opener = urllib.request.build_opener()
+                            opener.addheaders = [('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')]
+                            urllib.request.install_opener(opener)
+                            
+                            # تحميل الملف الجديد باسم مؤقت أولاً بنجاح
+                            urllib.request.urlretrieve(exe_url, output_path, reporthook=reporthook)
+                            progress_window.destroy() # غلق نافذة شريط التقدم
                             
                             current_exe = sys.executable
                             
-                            # كود سحري لـ CMD يقوم بـ: الانتظار ثانية -> استبدال الملف الحالي بالجديد -> إعادة التشغيل
-                            # تم وضع timeout 1 ثانية ليعطي فرصة لبرنامج البايثون الحالي كي يغلق تماماً ويتحرر الملف من الذاكرة
-                            cmd_command = f'timeout /t 1 && move /y "{output_path}" "{current_exe}" && start "" "{current_exe}"'
+                            # إذا كان الملف المرفوع ZIP، نقوم بفك ضغطه أولاً لاستخراج الـ EXE الحقيقي
+                            if file_extension == ".zip":
+                                lbl_status.config(text="جاري فك ضغط الملفات...")
+                                with zipfile.ZipFile(output_path, 'r') as zip_ref:
+                                    # نفك الضغط في نفس مجلد البرنامج الحالي
+                                    zip_ref.extractall(os.path.dirname(current_exe))
+                                
+                                # نقوم بحذف ملف الـ zip المؤقت بعد فكه لتنظيف المجلد
+                                os.remove(output_path)
+                                
+                                # نفترض أن الملف المفكوك داخله هو "SwiftFolderPro.exe"
+                                # سنقوم بالتعامل السحري لتشغيل الإصدار الجديد وحذف الحالي عبر CMD
+                                extracted_exe = os.path.join(os.path.dirname(current_exe), "SwiftFolderPro.exe")
+                                
+                                # إذا كان الاسم المستخرج مختلف عن البرنامج الحالي، نستبدله
+                                if extracted_exe.lower() != current_exe.lower():
+                                    cmd_command = f'timeout /t 1 && move /y "{extracted_exe}" "{current_exe}" && start "" "{current_exe}"'
+                                else:
+                                    cmd_command = f'timeout /t 1 && start "" "{current_exe}"'
+                            else:
+                                # إذا قمت برفع ملف exe مباشر (وهو الأفضل والموصى به)، يتم التحديث هنا مباشرة
+                                cmd_command = f'timeout /t 1 && move /y "{output_path}" "{current_exe}" && start "" "{current_exe}"'
                             
                             # تشغيل الأمر في الخلفية صامتاً
                             subprocess.Popen(cmd_command, shell=True)
@@ -665,7 +691,7 @@ class SwiftFolderPro(ctk.CTk):
                         except Exception as download_error:
                             if 'progress_window' in locals() and progress_window.winfo_exists():
                                 progress_window.destroy()
-                            messagebox.showerror("خطأ في التحميل", f"فشل تحميل وتثبيت الملف: {download_error}")
+                            messagebox.showerror("خطأ في التحميل", f"فشل تحميل وتثبيت الملف:\n{str(download_error)}")
                     
                     # تشغيل خيط التحميل في الخلفية لكي لا تتجمد الواجهة
                     import threading
