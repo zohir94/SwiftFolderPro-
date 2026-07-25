@@ -477,7 +477,9 @@ class SwiftFolderPro(ctk.CTk):
                 
                 self.deiconify()
                 login_dialog.destroy()
-                self.start_update_check()
+                
+                # 🎯 هنا مكان السطر المطلوب: تشغيل فحص تحديث الزبائن بعد ثانية واحدة من إغلاق نافذة الباسوورد
+                self.after(1000, self.check_for_data_updates)
             else:
                 lbl_error.configure(text="⚠️ كلمة السر خاطئة، الرجاء إعادة المحاولة", text_color="#e74c3c")
                 entry.delete(0, "end")
