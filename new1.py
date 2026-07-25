@@ -246,7 +246,7 @@ class SwiftFolderPro(ctk.CTk):
         # --- قاموس اللغات ---
         self.languages = {
             "العربية": {
-                "title": "SwiftFolder Pro v1.0.2",
+                "title": "SwiftFolder Pro v1.0.1",
                 "settings": "⚙️ الإعدادات",
                 "backup": "☁️النسخة الاحتياطية",
                 "import_btn": "📥 الاستيراد",
@@ -299,7 +299,7 @@ class SwiftFolderPro(ctk.CTk):
                 "all_customer": "كل الزبائن",
             },
             "English": {
-                "title": "SwiftFolder Pro v1.0.2",
+                "title": "SwiftFolder Pro v1.0.1",
                 "settings": "⚙️ Settings",
                 "backup": "☁️ Backup",
                 "import_btn": "📥 Import",
@@ -370,9 +370,14 @@ class SwiftFolderPro(ctk.CTk):
         self.load_initial_archive()
         
         # إعدادات التحديث التلقائي
-        self.CURRENT_VERSION = "1.0.2"
+        self.CURRENT_VERSION = "1.0.1"
         # استبدل USERNAME باسم حسابك على GitHub بدقة
         self.VERSION_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/version.txt"
+        
+    #-----------------------------------------------------------------------------------------------------------------------------------    
+        
+        # فحص تحديثات البيانات بعد ثانيتين من إقلاع البرنامج
+        self.after(2000, self.check_for_data_updates)   
         
         
     
@@ -584,6 +589,68 @@ class SwiftFolderPro(ctk.CTk):
                                    fg_color="transparent", hover_color=None, text_color="#1f538d",
                                    font=("Segoe UI", 12, "underline"), cursor="hand2")
         btn_forgot.pack(pady=(5, 15))
+    
+    #-----------------------------------------------------------------------------------------------------------------------------------    
+    # ضع هذه الدالة داخل كلاس واجهة البرنامج الخاص بك:
+    def check_for_data_updates(self):
+        """
+        تفحص هذه الدالة وجود تحديثات لملف الزبائن والبيانات أونلاين وتقوم بتحديثها تلقائياً
+        """
+        # روابط الملفات التي قمت برفعها على جيت هاب
+        VERSION_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/data_version.txt"
+        CUSTOMERS_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/customers.txt"
+        
+        # أسماء الملفات المحلية على جهاز المستخدم
+        local_version_file = "local_data_version.txt"
+        local_customers_file = "customers.txt"
+
+        # 1. قراءة رقم الإصدار المحلي الحالي (إذا لم يكن موجوداً نعتبره 0)
+        local_version = "0"
+        if os.path.exists(local_version_file):
+            try:
+                with open(local_version_file, "r", encoding="utf-8") as f:
+                    local_version = f.read().strip()
+            except:
+                local_version = "0"
+
+        try:
+            # 2. جلب رقم الإصدار الجديد من الرابط أونلاين (مع تحديد مهلة اتصال 5 ثوانٍ)
+            req = urllib.request.Request(VERSION_URL, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                online_version = response.read().decode('utf-8').strip()
+
+            # 3. مقارنة الإصدارين: إذا كان هناك إصدار جديد أونلاين
+            if online_version != local_version:
+                # إظهار رسالة تنبيه للمستخدم الآخر بوجود تحديث في الملفات والزبائن
+                user_agree = messagebox.askyesno(
+                    "تحديث البيانات", 
+                    "تم رصد تغييرات أو تحديثات جديدة على مستوى الملفات وقائمة الزبائن.\n\nهل تريد جلب هذه التحديثات وتطبيقها الآن؟"
+                )
+                
+                if user_agree:
+                    # 4. تحميل ملف الزبائن الجديد وحفظه مكان القديم
+                    cust_req = urllib.request.Request(CUSTOMERS_URL, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(cust_req, timeout=5) as response:
+                        new_customers_data = response.read().decode('utf-8')
+                    
+                    with open(local_customers_file, "w", encoding="utf-8") as f:
+                        f.write(new_customers_data)
+                    
+                    # 5. تحديث ملف الإصدار المحلي ليتطابق مع السيرفر
+                    with open(local_version_file, "w", encoding="utf-8") as f:
+                        f.write(online_version)
+                    
+                    messagebox.showinfo("نجاح", "تم تحديث البيانات وقائمة الزبائن بنجاح!")
+                    
+                    # 6. تحديث قائمة الزبائن في واجهة البرنامج فوراً دون الحاجة لإعادة تشغيل البرنامج
+                    if hasattr(self, 'update_customer_list'):
+                        self.update_customer_list()
+                    if hasattr(self, 'apply_filter'):
+                        self.apply_filter()
+
+        except Exception as e:
+            # نتجاهل الأخطاء بصمت في حال لم يكن هناك اتصال بالإنترنت حتى لا يتعطل البرنامج
+            print(f"خطأ أثناء فحص تحديث البيانات: {e}")  
         
     #-----------------------------------------------------------------------------------------------------------------------------------    
     def start_update_check(self):
@@ -781,7 +848,7 @@ class SwiftFolderPro(ctk.CTk):
         # نسخة البرنامج
         self.version_label = ctk.CTkLabel(
             logo_frame,
-            text="v1.0.2",
+            text="v1.0.1",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=COLORS["text_muted"]
         )
