@@ -1,0 +1,6 @@
+customtkinter
+supabase
+postgrest
+httpx
+gotrue
+pyinstaller
