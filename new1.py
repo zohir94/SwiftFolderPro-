@@ -1,4 +1,6 @@
 import os
+import re
+import uuid
 import pyzipper
 import win32com.client
 import shutil
@@ -7,10 +9,233 @@ from datetime import datetime
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox, simpledialog, filedialog, ttk
-import urllib.request
+
 import threading
 import json
 from tkinter import messagebox
+import sys
+import subprocess
+import urllib.parse  # تأكد من وجود هذا السطر في أعلى ملف البرنامج مع الـ imports
+# هذا الكود يقوم بتنزيل وتثبيت مكتبة supabase تلقائياً
+try:
+    from supabase import create_client
+except ImportError:
+    print("جاري تثبيت مكتبة supabase تلقائياً، يرجى الانتظار...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "supabase"])
+    from supabase import create_client
+    
+# 2. بيانات الاتصال بـ Supabase
+SUPABASE_URL = "https://rdsaefhqhsjywquxsgjv.supabase.co"
+SUPABASE_KEY = "sb_publishable_4j102e4rQgsQLtJHmjc5eQ_Y9RZZrMH"  # استبدل هذا بالمفتاح الخاص بك
+
+# 3. إنشاء كائن الاتصال بالسحابة
+try:
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    BUCKET_NAME = "swift-files"
+    print("تم الاتصال بالسحابة بنجاح! 🚀")
+except Exception as e:
+    print(f"خطأ في الاتصال بـ Supabase: {e}")
+    
+#----------------------------------------------------------------------------------------------------
+# =========================================================
+
+
+
+
+def generate_safe_cloud_name(original_filename):
+    """
+    دالة مخصصة لتشفير وتحويل أسماء الملفات:
+    - الملف الأجنبي: يمر كما هو دون تغيير.
+    - الملف العربي: يتم تحويله تلقائياً إلى معرّف سحابي آمن ومفرّد مع الحفاظ على امتداد الملف الأصلي.
+    """
+    # استخراج امتداد الملف (مثل .pdf, .xlsx) والاسم بدون امتداد
+    name_without_ext, ext = os.path.splitext(original_filename)
+
+    # التحقق مما إذا كان الاسم يحتوي على حروف غير أجنبية (مثل العربية) أو رموز خاصة
+    is_non_ascii = not all(ord(char) < 128 for char in name_without_ext)
+
+    if is_non_ascii:
+        # إذا كان الاسم بالعربية: ننشئ لها اسماً مشفراً وفريداً باستخدام UUID
+        unique_id = uuid.uuid4().hex[:10]  # كود فريد مكون من 10 أرقام وحروف
+        # تشفير إضافي آمن لضمان قبول السيرفر 100%
+        safe_name = f"doc_{unique_id}{ext}"
+        print(f"🔀 تم تحويل الاسم العربي '{original_filename}' إلى اسم سحابي آمن: '{safe_name}'")
+        return safe_name
+    else:
+        # إذا كان باللغة الأجنبية: ننظف المسافات والرموز فقط ونتركه كما هو
+        safe_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', name_without_ext) + ext
+        return safe_name
+
+
+def upload_file_to_cloud(self_or_path, file_path=None):
+    """
+    دالة الرفع الذكية: تتعاون مع دالة التشفير لرفع الملفات العربية والأجنبية أوتوماتيكياً
+    """
+    try:
+        # معالجة استدعاء الدالة سواء بـ self أو بدونه
+        if file_path is None:
+            actual_path = self_or_path
+            client = supabase
+        else:
+            actual_path = file_path
+            client = self_or_path.supabase if hasattr(self_or_path, 'supabase') and not isinstance(self_or_path.supabase, str) else supabase
+
+        # 1. استخراج اسم الملف الأصلي من المسار
+        original_file_name = os.path.basename(actual_path)
+
+        # 2. 🔥 استدعاء دالة التشفير والتحويل المخصصة 🔥
+        cloud_file_name = generate_safe_cloud_name(original_file_name)
+
+        print(f"🔄 جاري رفع الملف إلى السحابة: {original_file_name}...")
+
+        # 3. قراءة محتوى الملف بالكامل
+        with open(actual_path, 'rb') as f:
+            file_data = f.read()
+
+        # 4. الرفع إلى منصة Supabase بالاسم السحابي المشفّر والآمن
+        client.storage.from_(BUCKET_NAME).upload(
+            path=cloud_file_name,
+            file=file_data,
+            file_options={"upsert": "true"}
+        )
+
+        print(f"✔ تم رفع الملف '{original_file_name}' إلى السحابة بنجاح تحت اسم ({cloud_file_name})! 🚀")
+        return True
+
+    except Exception as e:
+        print(f"❌ خطأ أثناء رفع الملف للسحابة: {e}")
+        return False
+
+import os
+import urllib.parse
+
+
+def delete_file_from_cloud(file_name_or_path):
+    """حذف ملف ذكياً من السحابة (للأسماء العربية والأجنبية والمشفرة) ومن الجهاز محلياً"""
+    try:
+        # 1. استخراج اسم الملف فقط والمصار المحلي
+        file_name = os.path.basename(file_name_or_path)
+
+        # تحديد المسار المحلي إذا تم تمرير الاسم فقط أو المسار الكامل
+        local_path = (
+            file_name_or_path
+            if os.path.exists(file_name_or_path)
+            else file_name
+        )
+
+        # حساب حجم الملف المحلي بالبايت للمطابقة الذكية مع الملفات العربية المشفرة
+        local_file_size = (
+            os.path.getsize(local_path) if os.path.exists(local_path) else None
+        )
+
+        print(f"🔍 جاري البحث عن الملف '{file_name}' في منصة السحابة لحذفه...")
+
+        # 2. جلب قائمة الملفات الموجودة في السحابة
+        cloud_files = supabase.storage.from_(BUCKET_NAME).list()
+
+        target_cloud_file = None
+
+        for cloud_file in cloud_files:
+            cloud_name = cloud_file.get("name", "")
+            cloud_size = (
+                cloud_file.get("metadata", {}).get("size")
+                if cloud_file.get("metadata")
+                else None
+            )
+
+            # فك تشفير الاسم السحابي
+            decoded_cloud_name = urllib.parse.unquote(cloud_name)
+
+            # --- حالة أ: المطابقة المباشرة بالاسم (للملفات غير المشفرة أو الإنجليزية) ---
+            if cloud_name == file_name or decoded_cloud_name == file_name:
+                target_cloud_file = cloud_name
+                break
+
+            # --- حالة ب: المطابقة الذكية للملفات العربية المشفرة بـ UUID ---
+            _, local_ext = os.path.splitext(file_name)
+            _, cloud_ext = os.path.splitext(cloud_name)
+
+            if (
+                local_ext.lower() == cloud_ext.lower()
+                and local_file_size is not None
+                and cloud_size == local_file_size
+            ):
+                target_cloud_file = cloud_name
+                print(
+                    f"🎯 تم التعرف الذكي على الملف المشفّر في السحابة: {cloud_name}"
+                )
+                break
+
+        # 3. إرسال أمر الحذف إلى منصة Supabase
+        if target_cloud_file:
+            supabase.storage.from_(BUCKET_NAME).remove([target_cloud_file])
+            print(
+                f"✔ تم حذف الملف '{file_name}' (الاسم السحابي: {target_cloud_file}) من السحابة بنجاح! 🚀"
+            )
+        else:
+            print(
+                f"⚠️ لم يتم العثور على الملف في السحابة (ربما تم حذفه مسبقاً)."
+            )
+
+        # 4. حذف الملف من الجهاز محلياً (إذا كان ما يزال موجوداً)
+        if os.path.exists(local_path):
+            os.remove(local_path)
+            print(f"🗑️ تم حذف الملف محلياً من الجهاز.")
+
+        return True
+
+    except Exception as e:
+        print(f"❌ خطأ أثناء حذف الملف: {e}")
+        return False
+        
+def check_and_sync_files(local_folder_path):
+    """فحص السحابة وجلب الملفات الجديدة غير الموجودة محلياً"""
+    try:
+        # 1. جلب قائمة الملفات من السحابة
+        cloud_files = supabase.storage.from_(BUCKET_NAME).list()
+        if not cloud_files:
+            return
+
+        # التعديل الأول: فك تشفير الأسماء القادمة من السحابة لترجع للغة العربية
+        cloud_file_names = [urllib.parse.unquote(f['name']) for f in cloud_files if f['name'] != '.emptyFolderPlaceholder']
+        
+        # 2. تحديد الملفات المفقودة محلياً
+        missing_files = []
+        for file_name in cloud_file_names:
+            local_path = os.path.join(local_folder_path, file_name)
+            if not os.path.exists(local_path):
+                missing_files.append(file_name)
+
+        # 3. إذا وجد ملفات جديدة، نطلب التحديث من المستخدم
+        if missing_files:
+            # إظهار نافذة التحديث
+            msg = f"توجد {len(missing_files)} ملفات جديدة متوفرة في السحابة:\n\n"
+            msg += "\n".join([f"- {name}" for name in missing_files[:5]])
+            if len(missing_files) > 5:
+                msg += f"\n...وغيرها ({len(missing_files)} ملف)"
+            msg += "\n\nهل تريد تحميل وتحديث الملفات الآن؟"
+
+            # استخدام tkinter messagebox
+            from tkinter import messagebox
+            confirm = messagebox.askyesno("تحديث الأرشيف السحابي ☁️", msg)
+
+            if confirm:
+                print("جاري تنزيل الملفات الجديدة...")
+                for file_name in missing_files:
+                    local_save_path = os.path.join(local_folder_path, file_name)
+                    
+                    # التعديل الثاني: تشفير الاسم قبل إرساله للسيرفر للتحميل لتجنب خطأ InvalidKey
+                    safe_name = urllib.parse.quote(file_name)
+                    res = supabase.storage.from_(BUCKET_NAME).download(safe_name)
+                    
+                    with open(local_save_path, 'wb') as f:
+                        f.write(res)
+                        
+                messagebox.showinfo("تم التحديث", "تم تحميل جميع الملفات الجديدة وتحديث الأرشيف بنجاح! 🎉")
+                # هنا يمكنك استدعاء دالة إعادة تحديث الجدول في الواجهة GUI
+    except Exception as e:
+        print(f"خطأ أثناء فحص المزامنة السحابية: {e}")
+
 
 # =============================================
 #  SwiftFolder Pro  — Premium Dark UI
@@ -246,7 +471,7 @@ class SwiftFolderPro(ctk.CTk):
         # --- قاموس اللغات ---
         self.languages = {
             "العربية": {
-                "title": "SwiftFolder Pro v1.0.3",
+                "title": "SwiftFolder Pro v1.0.1",
                 "settings": "⚙️ الإعدادات",
                 "backup": "☁️النسخة الاحتياطية",
                 "import_btn": "📥 الاستيراد",
@@ -299,7 +524,7 @@ class SwiftFolderPro(ctk.CTk):
                 "all_customer": "كل الزبائن",
             },
             "English": {
-                "title": "SwiftFolder Pro v1.0.3",
+                "title": "SwiftFolder Pro v1.0.1",
                 "settings": "⚙️ Settings",
                 "backup": "☁️ Backup",
                 "import_btn": "📥 Import",
@@ -370,15 +595,17 @@ class SwiftFolderPro(ctk.CTk):
         self.load_initial_archive()
         
         # إعدادات التحديث التلقائي
-        self.CURRENT_VERSION = "1.0.3"
+        self.CURRENT_VERSION = "1.0.1"
         # استبدل USERNAME باسم حسابك على GitHub بدقة
         self.VERSION_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/version.txt"
         
-    #-----------------------------------------------------------------------------------------------------------------------------------    
-        
         # فحص تحديثات البيانات بعد ثانيتين من إقلاع البرنامج
-           
         
+        
+        # ضع هذا السطر في نهاية كود تشغيل الواجهة أو بعد فتح النافذة الرئيسية
+        # استبدل 'path_to_local_folder' بمسار المجلد المحلي الذي تحفظ فيه الملفات داخل جهازك
+        #check_and_sync_files("path_to_local_folder")
+       
         
     
     #-----------------------------------------------------------------------------------------------------------------------------------
@@ -479,7 +706,7 @@ class SwiftFolderPro(ctk.CTk):
                 login_dialog.destroy()
                 
                 # 🎯 هنا مكان السطر المطلوب: تشغيل فحص تحديث الزبائن بعد ثانية واحدة من إغلاق نافذة الباسوورد
-                self.after(2000, self.check_for_data_updates)
+                self.after(2000, lambda: check_and_sync_files(self.archive_dir))
             else:
                 lbl_error.configure(text="⚠️ كلمة السر خاطئة، الرجاء إعادة المحاولة", text_color="#e74c3c")
                 entry.delete(0, "end")
@@ -591,70 +818,15 @@ class SwiftFolderPro(ctk.CTk):
                                    fg_color="transparent", hover_color=None, text_color="#1f538d",
                                    font=("Segoe UI", 12, "underline"), cursor="hand2")
         btn_forgot.pack(pady=(5, 15))
+        
+    #----------------------------------------------------------------------------------------------------------------------------------- 
     
-    #-----------------------------------------------------------------------------------------------------------------------------------    
-    # ضع هذه الدالة داخل كلاس واجهة البرنامج الخاص بك:
-    def check_for_data_updates(self):
-        """
-        تفحص هذه الدالة وجود تحديثات لملف الزبائن والبيانات أونلاين وتقوم بتحديثها تلقائياً
-        """
-        # روابط الملفات التي قمت برفعها على جيت هاب
-        VERSION_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/data_version.txt"
-        CUSTOMERS_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/customers.txt"
         
-        # أسماء الملفات المحلية على جهاز المستخدم
-        local_version_file = "local_data_version.txt"
-        local_customers_file = "customers.txt"
+     #-----------------------------------------------------------------------------------------------------------------------------
 
-        # 1. قراءة رقم الإصدار المحلي الحالي (إذا لم يكن موجوداً نعتبره 0)
-        local_version = "0"
-        if os.path.exists(local_version_file):
-            try:
-                with open(local_version_file, "r", encoding="utf-8") as f:
-                    local_version = f.read().strip()
-            except:
-                local_version = "0"
 
-        try:
-            # 2. جلب رقم الإصدار الجديد من الرابط أونلاين (مع تحديد مهلة اتصال 5 ثوانٍ)
-            req = urllib.request.Request(VERSION_URL, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=5) as response:
-                online_version = response.read().decode('utf-8').strip()
 
-            # 3. مقارنة الإصدارين: إذا كان هناك إصدار جديد أونلاين
-            if online_version != local_version:
-                # إظهار رسالة تنبيه للمستخدم الآخر بوجود تحديث في الملفات والزبائن
-                user_agree = messagebox.askyesno(
-                    "تحديث البيانات", 
-                    "تم رصد تغييرات أو تحديثات جديدة على مستوى الملفات وقائمة الزبائن.\n\nهل تريد جلب هذه التحديثات وتطبيقها الآن؟"
-                )
-                
-                if user_agree:
-                    # 4. تحميل ملف الزبائن الجديد وحفظه مكان القديم
-                    cust_req = urllib.request.Request(CUSTOMERS_URL, headers={'User-Agent': 'Mozilla/5.0'})
-                    with urllib.request.urlopen(cust_req, timeout=5) as response:
-                        new_customers_data = response.read().decode('utf-8')
-                    
-                    with open(local_customers_file, "w", encoding="utf-8") as f:
-                        f.write(new_customers_data)
-                    
-                    # 5. تحديث ملف الإصدار المحلي ليتطابق مع السيرفر
-                    with open(local_version_file, "w", encoding="utf-8") as f:
-                        f.write(online_version)
-                    
-                    messagebox.showinfo("نجاح", "تم تحديث البيانات وقائمة الزبائن بنجاح!")
-                    
-                    # 6. تحديث قائمة الزبائن في واجهة البرنامج فوراً دون الحاجة لإعادة تشغيل البرنامج
-                    if hasattr(self, 'update_customer_list'):
-                        self.update_customer_list()
-                    if hasattr(self, 'apply_filter'):
-                        self.apply_filter()
-
-        except Exception as e:
-            # نتجاهل الأخطاء بصمت في حال لم يكن هناك اتصال بالإنترنت حتى لا يتعطل البرنامج
-            print(f"خطأ أثناء فحص تحديث البيانات: {e}")  
-        
-    #-----------------------------------------------------------------------------------------------------------------------------------    
+    
     def start_update_check(self):
         # تأخير إطلاق خيط الفحص لمدة 5000 ملي ثانية (5 ثوانٍ) بعد ظهور الواجهة
         # هذا يضمن أن يفتح البرنامج فوراً في ثانية واحدة، ثم يبحث عن التحديث في الخلفية دون أي تأثير
@@ -671,12 +843,11 @@ class SwiftFolderPro(ctk.CTk):
             if latest_version != self.CURRENT_VERSION:
                 if messagebox.askyesno("تحديث جديد متوفر", f"يوجد إصدار جديد للبرنامج ({latest_version}).\nهل تريد تحميل وتثبيت التحديث الآن؟"):
                     
-                    # الرابط المباشر للملف (تأكد من رفعه كملف exe مباشر أو تحديث الرابط ليطابق مسارك)
-                    exe_url = "https://github.com/zohir94/SwiftFolderPro-/releases/download/latest/SwiftFolderPro.exe"
-                                      
-                    # سنحفظ الملف بنفس امتداده الأصلي الموجود في الرابط لتجنب تلف الملف
-                    file_extension = ".zip" if exe_url.endswith(".zip") else ".exe"
-                    output_path = f"SwiftFolderPro_New{file_extension}" 
+                    exe_url = "https://github.com/zohir94/SwiftFolderPro-/releases/download/1.0.1/SwiftFolderPro.zip"
+                              
+                    
+                    # اسم الملف المؤقت أثناء التحميل بجانب البرنامج الحالي
+                    output_path = "SwiftFolderPro_New.exe" 
                     
                     # --- إنشاء نافذة شريط التحميل المرئية ---
                     from tkinter import ttk
@@ -711,45 +882,20 @@ class SwiftFolderPro(ctk.CTk):
                     # دالة تشغيل التحميل والتحديث التلقائي
                     def download_thread():
                         try:
-                            import sys
-                            import os
-                            import subprocess
-                            import urllib.request
-                            import zipfile
-                            
-                            # ⚡ حل مشكلة الحظر: إضافة هيدر متصفح حقيقي لدالة urlretrieve الخاصة بـ GitHub
-                            opener = urllib.request.build_opener()
-                            opener.addheaders = [('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')]
-                            urllib.request.install_opener(opener)
-                            
-                            # تحميل الملف الجديد باسم مؤقت أولاً بنجاح
+                            # تحميل الملف الجديد باسم مؤقت أولاً
                             urllib.request.urlretrieve(exe_url, output_path, reporthook=reporthook)
                             progress_window.destroy() # غلق نافذة شريط التقدم
                             
+                            # معرفة اسم ومسار ملف البرنامج الحالي المشغل الآن
+                            import sys
+                            import os
+                            import subprocess
+                            
                             current_exe = sys.executable
                             
-                            # إذا كان الملف المرفوع ZIP، نقوم بفك ضغطه أولاً لاستخراج الـ EXE الحقيقي
-                            if file_extension == ".zip":
-                                lbl_status.config(text="جاري فك ضغط الملفات...")
-                                with zipfile.ZipFile(output_path, 'r') as zip_ref:
-                                    # نفك الضغط في نفس مجلد البرنامج الحالي
-                                    zip_ref.extractall(os.path.dirname(current_exe))
-                                
-                                # نقوم بحذف ملف الـ zip المؤقت بعد فكه لتنظيف المجلد
-                                os.remove(output_path)
-                                
-                                # نفترض أن الملف المفكوك داخله هو "SwiftFolderPro.exe"
-                                # سنقوم بالتعامل السحري لتشغيل الإصدار الجديد وحذف الحالي عبر CMD
-                                extracted_exe = os.path.join(os.path.dirname(current_exe), "SwiftFolderPro.exe")
-                                
-                                # إذا كان الاسم المستخرج مختلف عن البرنامج الحالي، نستبدله
-                                if extracted_exe.lower() != current_exe.lower():
-                                    cmd_command = f'timeout /t 1 && move /y "{extracted_exe}" "{current_exe}" && start "" "{current_exe}"'
-                                else:
-                                    cmd_command = f'timeout /t 1 && start "" "{current_exe}"'
-                            else:
-                                # إذا قمت برفع ملف exe مباشر (وهو الأفضل والموصى به)، يتم التحديث هنا مباشرة
-                                cmd_command = f'timeout /t 1 && move /y "{output_path}" "{current_exe}" && start "" "{current_exe}"'
+                            # كود سحري لـ CMD يقوم بـ: الانتظار ثانية -> استبدال الملف الحالي بالجديد -> إعادة التشغيل
+                            # تم وضع timeout 1 ثانية ليعطي فرصة لبرنامج البايثون الحالي كي يغلق تماماً ويتحرر الملف من الذاكرة
+                            cmd_command = f'timeout /t 1 && move /y "{output_path}" "{current_exe}" && start "" "{current_exe}"'
                             
                             # تشغيل الأمر في الخلفية صامتاً
                             subprocess.Popen(cmd_command, shell=True)
@@ -760,7 +906,7 @@ class SwiftFolderPro(ctk.CTk):
                         except Exception as download_error:
                             if 'progress_window' in locals() and progress_window.winfo_exists():
                                 progress_window.destroy()
-                            messagebox.showerror("خطأ في التحميل", f"فشل تحميل وتثبيت الملف:\n{str(download_error)}")
+                            messagebox.showerror("خطأ في التحميل", f"فشل تحميل وتثبيت الملف: {download_error}")
                     
                     # تشغيل خيط التحميل في الخلفية لكي لا تتجمد الواجهة
                     import threading
@@ -769,7 +915,78 @@ class SwiftFolderPro(ctk.CTk):
         except Exception as e:
             print(f"Error checking for updates: {e}")
     #-----------------------------------------------------------------------------------------------------------------------------------
-                 
+
+
+    def check_for_data_updates(self):
+        """
+        تفحص هذه الدالة وجود تحديثات لملف الزبائن أونلاين، بالإضافة إلى مزامنة الملفات من Supabase
+        """
+        # -------------------------------------------------------------
+        # الجزء الأول: مزامنة الملفات السحابية من Supabase
+        # -------------------------------------------------------------
+        try:
+            # تحديد مجلد حفظ الملفات المحلي (مثلاً مجلد اسمه files)
+            local_folder = os.path.join(os.getcwd(), "files")
+            if not os.path.exists(local_folder):
+                os.makedirs(local_folder)
+            
+            # استدعاء دالة المزامنة السحابية للملفات
+            check_and_sync_files(local_folder)
+        except Exception as e:
+            print(f"خطأ أثناء مزامنة ملفات Supabase: {e}")
+
+        # -------------------------------------------------------------
+        # الجزء الثاني: فحص تحديث قائمة الزبائن والإصدار (GitHub)
+        # -------------------------------------------------------------
+        VERSION_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/data_version.txt"
+        CUSTOMERS_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/customers.txt"
+        
+        local_version_file = "local_data_version.txt"
+        local_customers_file = "customers.txt"
+
+        local_version = "0"
+        if os.path.exists(local_version_file):
+            try:
+                with open(local_version_file, "r", encoding="utf-8") as f:
+                    local_version = f.read().strip()
+            except:
+                local_version = "0"
+
+        try:
+            req = urllib.request.Request(VERSION_URL, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                online_version = response.read().decode('utf-8').strip()
+
+            if online_version != local_version:
+                user_agree = messagebox.askyesno(
+                    "تحديث البيانات", 
+                    "تم رصد تغييرات أو تحديثات جديدة على مستوى قائمة الزبائن.\n\nهل تريد جلب هذه التحديثات وتطبيقها الآن؟"
+                )
+                
+                if user_agree:
+                    cust_req = urllib.request.Request(CUSTOMERS_URL, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(cust_req, timeout=5) as response:
+                        new_customers_data = response.read().decode('utf-8')
+                    
+                    with open(local_customers_file, "w", encoding="utf-8") as f:
+                        f.write(new_customers_data)
+                    
+                    with open(local_version_file, "w", encoding="utf-8") as f:
+                        f.write(online_version)
+                    
+                    messagebox.showinfo("نجاح", "تم تحديث البيانات وقائمة الزبائن بنجاح!")
+                    
+                    if hasattr(self, 'update_customer_list'):
+                        self.update_customer_list()
+                    if hasattr(self, 'apply_filter'):
+                        self.apply_filter()
+
+        except Exception as e:
+            print(f"خطأ أثناء فحص تحديث البيانات: {e}")
+    
+    
+    
+    #-----------------------------------------------------------------------------------------------------------------------------------             
     def setup_styles(self):
         """إعداد أنماط Treeview المخصصة بألوان التصميم المحسّن"""
         style = ttk.Style()
@@ -850,7 +1067,7 @@ class SwiftFolderPro(ctk.CTk):
         # نسخة البرنامج
         self.version_label = ctk.CTkLabel(
             logo_frame,
-            text="v1.0.3",
+            text="v1.0.1",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=COLORS["text_muted"]
         )
@@ -1696,26 +1913,57 @@ class SwiftFolderPro(ctk.CTk):
         self.stats_label.configure(text=f"{lang['file_count']} {count}")
 
     def load_initial_archive(self):
-        self.all_files_data = []
+        """إعادة قراءة مجلد الأرشيف وتحديث البيانات والواجهة فوراً"""
+
+        # 1. تفريغ قائمة البيانات المحفوظة في الذاكرة
+        self.all_files_data.clear()
+
+        # 2. تفريغ عناصر الجدول الحالية في الواجهة حتى لا تتكرر الصفوف
+        # إذا كنت تستخدم Treeview مثلاً باسم self.tree أو self.file_table:
+        if hasattr(self, "tree"):
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+        elif hasattr(self, "file_table"):
+            for item in self.file_table.get_children():
+                self.file_table.delete(item)
+
+        # 3. إعادة قراءة الملفات من المجلد المحلي
         if os.path.exists(self.archive_dir):
             for filename in os.listdir(self.archive_dir):
                 path = os.path.join(self.archive_dir, filename)
                 if os.path.isfile(path):
                     stats = os.stat(path)
                     name_only, extension = os.path.splitext(filename)
-                    
+
                     file_info = {
                         "path": path,
                         "name": name_only,
-                        "date": datetime.fromtimestamp(stats.st_ctime).strftime("%Y-%m-%d"),
+                        "date": datetime.fromtimestamp(stats.st_ctime).strftime(
+                            "%Y-%m-%d"
+                        ),
                         "size": f"{round(stats.st_size / (1024 * 1024), 2)} MB",
-                        "type": extension.replace('.', '').upper()
+                        "type": extension.replace(".", "").upper(),
                     }
                     self.all_files_data.append(file_info)
-        
-        self.all_files_data.sort(key=lambda x: os.path.getctime(x["path"]), reverse=True)
+
+        # 4. ترتيب الملفات حسب الأحدث
+        self.all_files_data.sort(
+            key=lambda x: os.path.getctime(x["path"]), reverse=True
+        )
+
+        # 5. تطبيق الفلترة وإعادة رسم الصفوف في الواجهة
         self.apply_filter()
         self.update_customer_list()
+
+        # 6. إجبار النافذة على التحديث اللحظي لترسِم العناصر الجديدة فوراً
+        self.update_idletasks()
+        
+        #------------------------------------------------------------------------
+
+
+
+    
+    #---------------------------------------------------------------------------------------------------
         
     def update_sidebar_buttons(self, event=None):
         # 1. جلب قائمة الملفات المحددة حالياً
@@ -1865,7 +2113,12 @@ class SwiftFolderPro(ctk.CTk):
                         dest = os.path.join(self.archive_dir, f"{base} ({i}){ext}")
                         i += 1
 
+                # 1. نسخ الملف إلى المجلد المحلي للجهاز
                 shutil.copy2(file_path, dest)
+                
+                # 2. رفع الملف تلقائياً إلى سحابة Supabase
+                upload_file_to_cloud(dest)
+
                 added_count += 1
 
             self.load_initial_archive()
@@ -2240,8 +2493,12 @@ class SwiftFolderPro(ctk.CTk):
                     filename = f"{clean_name}.{file_type}"
                     path = os.path.join(self.archive_dir, filename)
                     
+                    # 1. حذف الملف محلياً من الجهاز
                     if os.path.exists(path):
                         os.remove(path)
+                    
+                    # 2. حذف الملف من السحابة لتبقى السحابة متطابقة
+                    delete_file_from_cloud(filename)
                 
                 self.load_initial_archive()
                 self.update_file_stats()
