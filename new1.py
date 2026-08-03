@@ -706,7 +706,7 @@ class SwiftFolderPro(ctk.CTk):
                 login_dialog.destroy()
                 
                 # 🎯 هنا مكان السطر المطلوب: تشغيل فحص تحديث الزبائن بعد ثانية واحدة من إغلاق نافذة الباسوورد
-                self.after(2000, lambda: check_and_sync_files(self.archive_dir))
+                self.after(1000, self.check_for_data_updates)
             else:
                 lbl_error.configure(text="⚠️ كلمة السر خاطئة، الرجاء إعادة المحاولة", text_color="#e74c3c")
                 entry.delete(0, "end")
@@ -843,7 +843,7 @@ class SwiftFolderPro(ctk.CTk):
             if latest_version != self.CURRENT_VERSION:
                 if messagebox.askyesno("تحديث جديد متوفر", f"يوجد إصدار جديد للبرنامج ({latest_version}).\nهل تريد تحميل وتثبيت التحديث الآن؟"):
                     
-                    exe_url = "https://github.com/zohir94/SwiftFolderPro-/releases/download/latest/SwiftFolderPro.exe"
+                    exe_url = "https://github.com/zohir94/SwiftFolderPro-/releases/download/1.0.1/SwiftFolderPro.zip"
                               
                     
                     # اسم الملف المؤقت أثناء التحميل بجانب البرنامج الحالي
@@ -960,7 +960,7 @@ class SwiftFolderPro(ctk.CTk):
             if online_version != local_version:
                 user_agree = messagebox.askyesno(
                     "تحديث البيانات", 
-                    "تم رصد تغييرات أو تحديثات جديدة على مستوى قائمة الزبائن.\n\nهل تريد جلب هذه التحديثات وتطبيقها الآن؟"
+                    "هناك تغيير في قائمة الزبائن .\n\n"
                 )
                 
                 if user_agree:
@@ -974,7 +974,7 @@ class SwiftFolderPro(ctk.CTk):
                     with open(local_version_file, "w", encoding="utf-8") as f:
                         f.write(online_version)
                     
-                    messagebox.showinfo("نجاح", "تم تحديث البيانات وقائمة الزبائن بنجاح!")
+                    messagebox.showinfo("نجاح", "تم التحديث بنجاح")
                     
                     if hasattr(self, 'update_customer_list'):
                         self.update_customer_list()
@@ -1067,7 +1067,7 @@ class SwiftFolderPro(ctk.CTk):
         # نسخة البرنامج
         self.version_label = ctk.CTkLabel(
             logo_frame,
-            text="v1.0.4",
+            text="v1.0.5",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=COLORS["text_muted"]
         )
