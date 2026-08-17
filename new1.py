@@ -471,7 +471,7 @@ class SwiftFolderPro(ctk.CTk):
         # --- قاموس اللغات ---
         self.languages = {
             "العربية": {
-                "title": "SwiftFolder Pro v1.0.5",
+                "title": "SwiftFolder Pro v1.0.1",
                 "settings": "⚙️ الإعدادات",
                 "backup": "☁️النسخة الاحتياطية",
                 "import_btn": "📥 الاستيراد",
@@ -524,7 +524,7 @@ class SwiftFolderPro(ctk.CTk):
                 "all_customer": "كل الزبائن",
             },
             "English": {
-                "title": "SwiftFolder Pro v1.0.5",
+                "title": "SwiftFolder Pro v1.0.1",
                 "settings": "⚙️ Settings",
                 "backup": "☁️ Backup",
                 "import_btn": "📥 Import",
@@ -595,7 +595,7 @@ class SwiftFolderPro(ctk.CTk):
         self.load_initial_archive()
         
         # إعدادات التحديث التلقائي
-        self.CURRENT_VERSION = "1.0.5"
+        self.CURRENT_VERSION = "1.0.1"
         # استبدل USERNAME باسم حسابك على GitHub بدقة
         self.VERSION_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/version.txt"
         
@@ -611,213 +611,232 @@ class SwiftFolderPro(ctk.CTk):
     #-----------------------------------------------------------------------------------------------------------------------------------
 
             
-    def authenticate(self):
-        lang = self.languages[self.current_lang]
-        
-        # رمز الاستعادة الاحتياطي الذكي الخاص بك كمطور
-        MASTER_RECOVERY_KEY = "SWIFT-94-DZ"
-        
-        def get_correct_password():
+    import threading
+
+def authenticate(self):
+    lang = self.languages[self.current_lang]
+    
+    # رمز الاستعادة الاحتياطي الذكي الخاص بك كمطور
+    MASTER_RECOVERY_KEY = "SWIFT-94-DZ"
+    
+    def get_correct_password():
+        try:
+            with open(self.password_file, "r") as f:
+                return f.read().strip()
+        except:
+            return "1234"
+
+    # دالة عامة لتمكين اللصق (Ctrl+V) يدوياً لحل مشكلة التجميد في بعض الأنظمة
+    def enable_paste(entry_widget):
+        def paste_action(event=None):
             try:
-                with open(self.password_file, "r") as f:
-                    return f.read().strip()
+                entry_widget.insert("insert", entry_widget.clipboard_get())
             except:
-                return "1234"
+                pass
+            return "break" # لمنع تكرار اللصق مرتين
+        
+        entry_widget.bind("<Control-v>", paste_action)
+        entry_widget.bind("<Control-V>", paste_action)
 
-        # دالة عامة لتمكين اللصق (Ctrl+V) يدوياً لحل مشكلة التجميد في بعض الأنظمة
-        def enable_paste(entry_widget):
-            def paste_action(event=None):
+    # نافذة إدخال كلمة المرور (بطاقة مركزية احترافية)
+    login_dialog = ctk.CTkToplevel(self)
+    login_dialog.title(lang["login_title"])
+    login_dialog.geometry("420x500")
+    login_dialog.resizable(False, False)
+    
+    # تفعيل الـ grab ورفع النافذة فوق كل شيء لجذب انتباه نظام التشغيل
+    login_dialog.grab_set()
+    login_dialog.lift()
+    login_dialog.attributes("-topmost", True)  # تجعلها في المقدمة تماماً
+    login_dialog.attributes("-topmost", False) # ثم نلغيها فوراً حتى لا تتجمد فوق البرامج الأخرى
+
+    # مركز النافذة في شاشات الكمبيوتر
+    sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+    w, h = 420, 500
+    x = (sw // 2) - (w // 2)
+    y = (sh // 2) - (h // 2)
+    login_dialog.geometry(f"{w}x{h}+{x}+{y}")
+
+    # --- القسم الأول: الهوية البصرية والترحيب ---
+    lbl_logo = ctk.CTkLabel(login_dialog, text="SFP", font=("Impact", 75), text_color="#1f538d")
+    lbl_logo.pack(pady=(25, 0))
+
+    lbl_title = ctk.CTkLabel(login_dialog, text="SwiftFolder Pro", font=("Segoe UI", 24, "bold"))
+    lbl_title.pack(pady=(0, 2))
+
+    lbl_subtitle = ctk.CTkLabel(login_dialog, text=lang["login_msg"], font=("Segoe UI", 13), text_color="gray")
+    lbl_subtitle.pack(pady=(0, 25))
+
+    # --- القسم الثاني: حقول الإدخال والتحكم ---
+    entry_frame = ctk.CTkFrame(login_dialog, corner_radius=10, fg_color="#2d333b", height=45)
+    entry_frame.pack(pady=10, padx=35, fill="x")
+
+    # حقل كلمة المرور الرئيسي
+    entry = ctk.CTkEntry(entry_frame, show="*", border_width=0, fg_color="#2d333b", 
+                         font=("Segoe UI", 14), justify="center")
+    entry.pack(side="left", fill="both", expand=True, padx=(15, 0), pady=5)
+    
+    # ⚡ الحل الذكي: انتظار 100 ميكروثانية لظهور النافذة ثم إجبار المؤشر على الظهور
+    login_dialog.after(100, lambda: [entry.focus(), entry.focus_force()])
+    enable_paste(entry)
+
+    def toggle_password():
+        if entry.cget("show") == "*":
+            entry.configure(show="")
+            lock_label.configure(text="🔓")
+        else:
+            entry.configure(show="*")
+            lock_label.configure(text="🔒")
+
+    lock_label = ctk.CTkLabel(entry_frame, text="🔒", width=30, height=30, font=("Segoe UI", 16), fg_color=None, cursor="hand2")
+    lock_label.pack(side="right", padx=12)
+    lock_label.bind("<Button-1>", lambda e: toggle_password())
+
+    # مساحة التنبيهات الذكية
+    lbl_error = ctk.CTkLabel(login_dialog, text="", font=("Segoe UI", 12))
+    lbl_error.pack(pady=(5, 5))
+
+    # 🚀 دالة جديدة للمزامنة في الخلفية عبر الـ Thread
+    def start_background_sync():
+        def sync_worker():
+            try:
+                # 1. جلب تحديثات بيانات الزبائن
+                if hasattr(self, 'check_for_data_updates'):
+                    self.check_for_data_updates()
+                # 2. مزامنة الأرشيف السحابي والملفات
+                if hasattr(self, 'check_and_sync_files'):
+                    self.check_and_sync_files()
+            except Exception as e:
+                print(f"خطأ في المزامنة الخلفية: {e}")
+
+        # تشغيل الدالة في خيط خلفي حتى لا تتجمد الواجهة الرئيسية
+        thread = threading.Thread(target=sync_worker, daemon=True)
+        thread.start()
+
+    # دالة التحقق الذكية والتوجيه لنظام التحديثات
+    def check_password(event=None):
+        correct_pass = get_correct_password()
+        entered = entry.get()
+        if entered == correct_pass:
+            lbl_error.configure(text="✔ جاري التحقق والدخول...", text_color="#2ecc71")
+            login_dialog.update_idletasks()
+            
+            self.deiconify()
+            login_dialog.destroy()
+            
+            # 🎯 التشغيل السلس: نفتح الواجهة فوراً، ونبدأ المزامنة السحابية في الخلفية بعد ثانية واحدة
+            self.after(1000, start_background_sync)
+        else:
+            lbl_error.configure(text="⚠️ كلمة السر خاطئة، الرجاء إعادة المحاولة", text_color="#e74c3c")
+            entry.delete(0, "end")
+            entry.focus()
+            entry.focus_force()
+
+    # زر الدخول البارز
+    btn = ctk.CTkButton(login_dialog, text="تسجيل الدخول", command=check_password,
+                         height=45, corner_radius=10, font=("Segoe UI", 15, "bold"),
+                         fg_color="#1f538d", hover_color="#14375e")
+    btn.pack(pady=10, padx=35, fill="x")
+
+    # ربط زر Enter بالنافذة الرئيسية للدخول
+    entry.bind("<Return>", check_password)
+    login_dialog.bind("<Return>", check_password)
+
+    # --- القسم الرابع: ميزة نسيت كلمة المرور ---
+    def open_recovery_interface():
+        """فتح نافذة فرعية لاستعادة كلمة المرور متناسقة مع التصميم الرئيسي"""
+        recovery_dialog = ctk.CTkToplevel(login_dialog)
+        recovery_dialog.title("استعادة كلمة المرور")
+        recovery_dialog.geometry("360x260")
+        recovery_dialog.resizable(False, False)
+        recovery_dialog.grab_set()
+        
+        rx = login_dialog.winfo_x() + (login_dialog.winfo_width() // 2) - (360 // 2)
+        ry = login_dialog.winfo_y() + (login_dialog.winfo_height() // 2) - (260 // 2)
+        recovery_dialog.geometry(f"360x260+{rx}+{ry}")
+        
+        lbl_rec_title = ctk.CTkLabel(recovery_dialog, text="أدخل رمز الاستعادة الاحتياطي:", font=("Segoe UI", 14, "bold"))
+        lbl_rec_title.pack(pady=(30, 10))
+        
+        rec_entry = ctk.CTkEntry(recovery_dialog, placeholder_text="Ex: SWIFT-XXXX-XX", width=260, height=40, corner_radius=10, justify="center")
+        rec_entry.pack(pady=10)
+        
+        # ⚡ تركيز المؤشر التلقائي في نافذة رمز الاستعادة بعد بنائها
+        recovery_dialog.after(100, lambda: [rec_entry.focus(), rec_entry.focus_force()])
+        enable_paste(rec_entry)
+        
+        lbl_rec_err = ctk.CTkLabel(recovery_dialog, text="", font=("Segoe UI", 12))
+        lbl_rec_err.pack(pady=2)
+
+        def verify_master_key(event=None):
+            if rec_entry.get().strip() == MASTER_RECOVERY_KEY:
+                recovery_dialog.destroy()
+                open_reset_interface()
+            else:
+                lbl_rec_err.configure(text="❌ رمز الاستعادة غير صحيح!", text_color="#e74c3c")
+                rec_entry.delete(0, "end")
+                rec_entry.focus()
+                rec_entry.focus_force()
+        
+        btn_verify = ctk.CTkButton(recovery_dialog, text="تحقق من الرمز", command=verify_master_key, height=40, width=260, corner_radius=10, font=("Segoe UI", 14, "bold"), fg_color="#1f538d")
+        btn_verify.pack(pady=10)
+        
+        rec_entry.bind("<Return>", verify_master_key)
+        recovery_dialog.bind("<Return>", verify_master_key)
+
+    def open_reset_interface():
+        """نافذة تعيين الباسوورد الجديد بعد نجاح التحقق"""
+        reset_dialog = ctk.CTkToplevel(login_dialog)
+        reset_dialog.title("تعيين كلمة سر جديدة")
+        reset_dialog.geometry("360x260")
+        reset_dialog.resizable(False, False)
+        reset_dialog.grab_set()
+        
+        rx = login_dialog.winfo_x() + (login_dialog.winfo_width() // 2) - (360 // 2)
+        ry = login_dialog.winfo_y() + (login_dialog.winfo_height() // 2) - (260 // 2)
+        reset_dialog.geometry(f"360x260+{rx}+{ry}")
+        
+        lbl_reset_title = ctk.CTkLabel(reset_dialog, text="اكتب كلمة المرور الجديدة الجديدة:", font=("Segoe UI", 14, "bold"))
+        lbl_reset_title.pack(pady=(30, 10))
+        
+        new_entry = ctk.CTkEntry(reset_dialog, placeholder_text="كلمة السر الجديدة", show="*", width=260, height=40, corner_radius=10, justify="center")
+        new_entry.pack(pady=10)
+        
+        # ⚡ تركيز المؤشر التلقائي في نافذة تعيين كلمة السر بعد بنائها
+        reset_dialog.after(100, lambda: [new_entry.focus(), new_entry.focus_force()])
+        enable_paste(new_entry)
+        
+        lbl_reset_err = ctk.CTkLabel(reset_dialog, text="", font=("Segoe UI", 12))
+        lbl_reset_err.pack(pady=2)
+
+        def save_new_password(event=None):
+            new_pwd = new_entry.get().strip()
+            if len(new_pwd) >= 4:
                 try:
-                    entry_widget.insert("insert", entry_widget.clipboard_get())
-                except:
-                    pass
-                return "break" # لمنع تكرار اللصق مرتين
-            
-            entry_widget.bind("<Control-v>", paste_action)
-            entry_widget.bind("<Control-V>", paste_action)
-
-        # نافذة إدخال كلمة المرور (بطاقة مركزية احترافية)
-        login_dialog = ctk.CTkToplevel(self)
-        login_dialog.title(lang["login_title"])
-        login_dialog.geometry("420x500")
-        login_dialog.resizable(False, False)
-        
-        # تفعيل الـ grab ورفع النافذة فوق كل شيء لجذب انتباه نظام التشغيل
-        login_dialog.grab_set()
-        login_dialog.lift()
-        login_dialog.attributes("-topmost", True)  # تجعلها في المقدمة تماماً
-        login_dialog.attributes("-topmost", False) # ثم نلغيها فوراً حتى لا تتجمد فوق البرامج الأخرى
-
-        # مركز النافذة في شاشات الكمبيوتر
-        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        w, h = 420, 500
-        x = (sw // 2) - (w // 2)
-        y = (sh // 2) - (h // 2)
-        login_dialog.geometry(f"{w}x{h}+{x}+{y}")
-
-        # --- القسم الأول: الهوية البصرية والترحيب ---
-        lbl_logo = ctk.CTkLabel(login_dialog, text="SFP", font=("Impact", 75), text_color="#1f538d")
-        lbl_logo.pack(pady=(25, 0))
-
-        lbl_title = ctk.CTkLabel(login_dialog, text="SwiftFolder Pro", font=("Segoe UI", 24, "bold"))
-        lbl_title.pack(pady=(0, 2))
-
-        lbl_subtitle = ctk.CTkLabel(login_dialog, text=lang["login_msg"], font=("Segoe UI", 13), text_color="gray")
-        lbl_subtitle.pack(pady=(0, 25))
-
-        # --- القسم الثاني: حقول الإدخال والتحكم ---
-        entry_frame = ctk.CTkFrame(login_dialog, corner_radius=10, fg_color="#2d333b", height=45)
-        entry_frame.pack(pady=10, padx=35, fill="x")
-
-        # حقل كلمة المرور الرئيسي
-        entry = ctk.CTkEntry(entry_frame, show="*", border_width=0, fg_color="#2d333b", 
-                             font=("Segoe UI", 14), justify="center")
-        entry.pack(side="left", fill="both", expand=True, padx=(15, 0), pady=5)
-        
-        # ⚡ الحل الذكي: انتظار 100 ميكروثانية لظهور النافذة ثم إجبار المؤشر على الظهور
-        login_dialog.after(100, lambda: [entry.focus(), entry.focus_force()])
-        enable_paste(entry)
-
-        def toggle_password():
-            if entry.cget("show") == "*":
-                entry.configure(show="")
-                lock_label.configure(text="🔓")
+                    with open(self.password_file, "w") as f:
+                        f.write(new_pwd)
+                    lbl_error.configure(text="✔ تم تغيير كلمة السر بنجاح! يمكنك الدخول الآن.", text_color="#2ecc71")
+                    reset_dialog.destroy()
+                    # إرجاع المؤشر فوراً للنافذة الرئيسية بعد إغلاق الفرعية
+                    login_dialog.after(50, lambda: [entry.focus(), entry.focus_force()])
+                except Exception as e:
+                    lbl_reset_err.configure(text="❌ فشل حفظ الملف السري في النظام", text_color="#e74c3c")
             else:
-                entry.configure(show="*")
-                lock_label.configure(text="🔒")
+                lbl_reset_err.configure(text="⚠️ يجب أن تتكون كلمة السر من 4 أرقام/حروف على الأقل", text_color="#e67e22")
+                new_entry.focus()
+                new_entry.focus_force()
 
-        lock_label = ctk.CTkLabel(entry_frame, text="🔒", width=30, height=30, font=("Segoe UI", 16), fg_color=None, cursor="hand2")
-        lock_label.pack(side="right", padx=12)
-        lock_label.bind("<Button-1>", lambda e: toggle_password())
+        btn_save = ctk.CTkButton(reset_dialog, text="حفظ وإغلاق", command=save_new_password, height=40, width=260, corner_radius=10, font=("Segoe UI", 14, "bold"), fg_color="#2ecc71", hover_color="#27ae60")
+        btn_save.pack(pady=10)
+        
+        new_entry.bind("<Return>", save_new_password)
+        reset_dialog.bind("<Return>", save_new_password)
 
-        # مساحة التنبيهات الذكية
-        lbl_error = ctk.CTkLabel(login_dialog, text="", font=("Segoe UI", 12))
-        lbl_error.pack(pady=(5, 5))
-
-        # دالة التحقق الذكية والتوجيه لنظام التحديثات
-        def check_password(event=None):
-            correct_pass = get_correct_password()
-            entered = entry.get()
-            if entered == correct_pass:
-                lbl_error.configure(text="✔ جاري التحقق والدخول...", text_color="#2ecc71")
-                login_dialog.update_idletasks()
-                
-                self.deiconify()
-                login_dialog.destroy()
-                
-                # 🎯 هنا مكان السطر المطلوب: تشغيل فحص تحديث الزبائن بعد ثانية واحدة من إغلاق نافذة الباسوورد
-                self.after(1000, self.check_for_data_updates)
-            else:
-                lbl_error.configure(text="⚠️ كلمة السر خاطئة، الرجاء إعادة المحاولة", text_color="#e74c3c")
-                entry.delete(0, "end")
-                entry.focus()
-                entry.focus_force()
-
-        # زر الدخول البارز
-        btn = ctk.CTkButton(login_dialog, text="تسجيل الدخول", command=check_password,
-                             height=45, corner_radius=10, font=("Segoe UI", 15, "bold"),
-                             fg_color="#1f538d", hover_color="#14375e")
-        btn.pack(pady=10, padx=35, fill="x")
-
-        # ربط زر Enter بالنافذة الرئيسية للدخول
-        entry.bind("<Return>", check_password)
-        login_dialog.bind("<Return>", check_password)
-
-        # --- القسم الرابع: ميزة نسيت كلمة المرور ---
-        def open_recovery_interface():
-            """فتح نافذة فرعية لاستعادة كلمة المرور متناسقة مع التصميم الرئيسي"""
-            recovery_dialog = ctk.CTkToplevel(login_dialog)
-            recovery_dialog.title("استعادة كلمة المرور")
-            recovery_dialog.geometry("360x260")
-            recovery_dialog.resizable(False, False)
-            recovery_dialog.grab_set()
-            
-            rx = login_dialog.winfo_x() + (login_dialog.winfo_width() // 2) - (360 // 2)
-            ry = login_dialog.winfo_y() + (login_dialog.winfo_height() // 2) - (260 // 2)
-            recovery_dialog.geometry(f"360x260+{rx}+{ry}")
-            
-            lbl_rec_title = ctk.CTkLabel(recovery_dialog, text="أدخل رمز الاستعادة الاحتياطي:", font=("Segoe UI", 14, "bold"))
-            lbl_rec_title.pack(pady=(30, 10))
-            
-            rec_entry = ctk.CTkEntry(recovery_dialog, placeholder_text="Ex: SWIFT-XXXX-XX", width=260, height=40, corner_radius=10, justify="center")
-            rec_entry.pack(pady=10)
-            
-            # ⚡ تركيز المؤشر التلقائي في نافذة رمز الاستعادة بعد بنائها
-            recovery_dialog.after(100, lambda: [rec_entry.focus(), rec_entry.focus_force()])
-            enable_paste(rec_entry)
-            
-            lbl_rec_err = ctk.CTkLabel(recovery_dialog, text="", font=("Segoe UI", 12))
-            lbl_rec_err.pack(pady=2)
-
-            def verify_master_key(event=None):
-                if rec_entry.get().strip() == MASTER_RECOVERY_KEY:
-                    recovery_dialog.destroy()
-                    open_reset_interface()
-                else:
-                    lbl_rec_err.configure(text="❌ رمز الاستعادة غير صحيح!", text_color="#e74c3c")
-                    rec_entry.delete(0, "end")
-                    rec_entry.focus()
-                    rec_entry.focus_force()
-            
-            btn_verify = ctk.CTkButton(recovery_dialog, text="تحقق من الرمز", command=verify_master_key, height=40, width=260, corner_radius=10, font=("Segoe UI", 14, "bold"), fg_color="#1f538d")
-            btn_verify.pack(pady=10)
-            
-            rec_entry.bind("<Return>", verify_master_key)
-            recovery_dialog.bind("<Return>", verify_master_key)
-
-        def open_reset_interface():
-            """نافذة تعيين الباسوورد الجديد بعد نجاح التحقق"""
-            reset_dialog = ctk.CTkToplevel(login_dialog)
-            reset_dialog.title("تعيين كلمة سر جديدة")
-            reset_dialog.geometry("360x260")
-            reset_dialog.resizable(False, False)
-            reset_dialog.grab_set()
-            
-            rx = login_dialog.winfo_x() + (login_dialog.winfo_width() // 2) - (360 // 2)
-            ry = login_dialog.winfo_y() + (login_dialog.winfo_height() // 2) - (260 // 2)
-            reset_dialog.geometry(f"360x260+{rx}+{ry}")
-            
-            lbl_reset_title = ctk.CTkLabel(reset_dialog, text="اكتب كلمة المرور الجديدة الجديدة:", font=("Segoe UI", 14, "bold"))
-            lbl_reset_title.pack(pady=(30, 10))
-            
-            new_entry = ctk.CTkEntry(reset_dialog, placeholder_text="كلمة السر الجديدة", show="*", width=260, height=40, corner_radius=10, justify="center")
-            new_entry.pack(pady=10)
-            
-            # ⚡ تركيز المؤشر التلقائي في نافذة تعيين كلمة السر بعد بنائها
-            reset_dialog.after(100, lambda: [new_entry.focus(), new_entry.focus_force()])
-            enable_paste(new_entry)
-            
-            lbl_reset_err = ctk.CTkLabel(reset_dialog, text="", font=("Segoe UI", 12))
-            lbl_reset_err.pack(pady=2)
-
-            def save_new_password(event=None):
-                new_pwd = new_entry.get().strip()
-                if len(new_pwd) >= 4:
-                    try:
-                        with open(self.password_file, "w") as f:
-                            f.write(new_pwd)
-                        lbl_error.configure(text="✔ تم تغيير كلمة السر بنجاح! يمكنك الدخول الآن.", text_color="#2ecc71")
-                        reset_dialog.destroy()
-                        # إرجاع المؤشر فوراً للنافذة الرئيسية بعد إغلاق الفرعية
-                        login_dialog.after(50, lambda: [entry.focus(), entry.focus_force()])
-                    except Exception as e:
-                        lbl_reset_err.configure(text="❌ فشل حفظ الملف السري في النظام", text_color="#e74c3c")
-                else:
-                    lbl_reset_err.configure(text="⚠️ يجب أن تتكون كلمة السر من 4 أرقام/حروف على الأقل", text_color="#e67e22")
-                    new_entry.focus()
-                    new_entry.focus_force()
-
-            btn_save = ctk.CTkButton(reset_dialog, text="حفظ وإغلاق", command=save_new_password, height=40, width=260, corner_radius=10, font=("Segoe UI", 14, "bold"), fg_color="#2ecc71", hover_color="#27ae60")
-            btn_save.pack(pady=10)
-            
-            new_entry.bind("<Return>", save_new_password)
-            reset_dialog.bind("<Return>", save_new_password)
-
-        # زر "هل نسيت كلمة المرور؟"
-        btn_forgot = ctk.CTkButton(login_dialog, text="هل نسيت كلمة المرور؟", command=open_recovery_interface,
-                                   fg_color="transparent", hover_color=None, text_color="#1f538d",
-                                   font=("Segoe UI", 12, "underline"), cursor="hand2")
-        btn_forgot.pack(pady=(5, 15))
+    # زر "هل نسيت كلمة المرور؟"
+    btn_forgot = ctk.CTkButton(login_dialog, text="هل نسيت كلمة المرور؟", command=open_recovery_interface,
+                               fg_color="transparent", hover_color=None, text_color="#1f538d",
+                               font=("Segoe UI", 12, "underline"), cursor="hand2")
+    btn_forgot.pack(pady=(5, 15))
         
     #----------------------------------------------------------------------------------------------------------------------------------- 
     
@@ -918,71 +937,92 @@ class SwiftFolderPro(ctk.CTk):
 
 
     def check_for_data_updates(self):
-        """
-        تفحص هذه الدالة وجود تحديثات لملف الزبائن أونلاين، بالإضافة إلى مزامنة الملفات من Supabase
-        """
-        # -------------------------------------------------------------
-        # الجزء الأول: مزامنة الملفات السحابية من Supabase
-        # -------------------------------------------------------------
-        try:
-            # تحديد مجلد حفظ الملفات المحلي (مثلاً مجلد اسمه files)
-            local_folder = os.path.join(os.getcwd(), "files")
-            if not os.path.exists(local_folder):
-                os.makedirs(local_folder)
-            
-            # استدعاء دالة المزامنة السحابية للملفات
-            check_and_sync_files(local_folder)
-        except Exception as e:
-            print(f"خطأ أثناء مزامنة ملفات Supabase: {e}")
-
-        # -------------------------------------------------------------
-        # الجزء الثاني: فحص تحديث قائمة الزبائن والإصدار (GitHub)
-        # -------------------------------------------------------------
-        VERSION_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/data_version.txt"
-        CUSTOMERS_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/customers.txt"
+    """
+    تفحص هذه الدالة وجود تحديثات لملف الزبائن أونلاين، بالإضافة إلى مزامنة الملفات من Supabase
+    (معدلة للعمل بأمان تام داخل الـ Thread الخلفي)
+    """
+    # -------------------------------------------------------------
+    # الجزء الأول: مزامنة الملفات السحابية من Supabase
+    # -------------------------------------------------------------
+    try:
+        # تحديد مجلد حفظ الملفات المحلي (مثلاً مجلد اسمه files)
+        local_folder = os.path.join(os.getcwd(), "files")
+        if not os.path.exists(local_folder):
+            os.makedirs(local_folder)
         
-        local_version_file = "local_data_version.txt"
-        local_customers_file = "customers.txt"
+        # استدعاء دالة المزامنة السحابية للملفات بأمان
+        if hasattr(self, 'check_and_sync_files'):
+            self.check_and_sync_files(local_folder)
+        elif 'check_and_sync_files' in globals():
+            check_and_sync_files(local_folder)
+    except Exception as e:
+        print(f"خطأ أثناء مزامنة ملفات Supabase: {e}")
 
-        local_version = "0"
-        if os.path.exists(local_version_file):
-            try:
-                with open(local_version_file, "r", encoding="utf-8") as f:
-                    local_version = f.read().strip()
-            except:
-                local_version = "0"
+    # -------------------------------------------------------------
+    # الجزء الثاني: فحص تحديث قائمة الزبائن والإصدار (GitHub)
+    # -------------------------------------------------------------
+    VERSION_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/data_version.txt"
+    CUSTOMERS_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/customers.txt"
+    
+    local_version_file = "local_data_version.txt"
+    local_customers_file = "customers.txt"
 
+    local_version = "0"
+    if os.path.exists(local_version_file):
         try:
-            req = urllib.request.Request(VERSION_URL, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=5) as response:
-                online_version = response.read().decode('utf-8').strip()
+            with open(local_version_file, "r", encoding="utf-8") as f:
+                local_version = f.read().strip()
+        except:
+            local_version = "0"
 
-            if online_version != local_version:
+    try:
+        req = urllib.request.Request(VERSION_URL, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            online_version = response.read().decode('utf-8').strip()
+
+        if online_version != local_version:
+            
+            # 🎯 دالة داخلية للتعامل مع الواجهة والتنبيهات بأمان من الخيط الرئيسي
+            def prompt_and_apply_update():
                 user_agree = messagebox.askyesno(
                     "تحديث البيانات", 
-                    "هناك تغيير في قائمة الزبائن .\n\n"
+                    "هناك تغيير في قائمة الزبائن .\n\nهل ترغب في التحميل الآن؟"
                 )
                 
                 if user_agree:
-                    cust_req = urllib.request.Request(CUSTOMERS_URL, headers={'User-Agent': 'Mozilla/5.0'})
-                    with urllib.request.urlopen(cust_req, timeout=5) as response:
-                        new_customers_data = response.read().decode('utf-8')
-                    
-                    with open(local_customers_file, "w", encoding="utf-8") as f:
-                        f.write(new_customers_data)
-                    
-                    with open(local_version_file, "w", encoding="utf-8") as f:
-                        f.write(online_version)
-                    
-                    messagebox.showinfo("نجاح", "تم التحديث بنجاح")
-                    
-                    if hasattr(self, 'update_customer_list'):
-                        self.update_customer_list()
-                    if hasattr(self, 'apply_filter'):
-                        self.apply_filter()
+                    # تنشيط تنزيل بيانات الزبائن الجدد
+                    def download_data():
+                        try:
+                            cust_req = urllib.request.Request(CUSTOMERS_URL, headers={'User-Agent': 'Mozilla/5.0'})
+                            with urllib.request.urlopen(cust_req, timeout=5) as resp:
+                                new_customers_data = resp.read().decode('utf-8')
+                            
+                            with open(local_customers_file, "w", encoding="utf-8") as f:
+                                f.write(new_customers_data)
+                            
+                            with open(local_version_file, "w", encoding="utf-8") as f:
+                                f.write(online_version)
+                            
+                            # تحديث الواجهة والجدول بأمان
+                            def on_success():
+                                messagebox.showinfo("نجاح", "تم التحديث بنجاح")
+                                if hasattr(self, 'update_customer_list'):
+                                    self.update_customer_list()
+                                if hasattr(self, 'apply_filter'):
+                                    self.apply_filter()
+                            
+                            self.after(0, on_success)
+                        except Exception as ex:
+                            print(f"خطأ أثناء تحميل ملف الزبائن: {ex}")
 
-        except Exception as e:
-            print(f"خطأ أثناء فحص تحديث البيانات: {e}")
+                    # تشغيل التحميل في خيط فرعي خفيف لتفادي تجميد الواجهة أثناء التنزيل
+                    threading.Thread(target=download_data, daemon=True).start()
+
+            # 🚀 إرسال طلب التحديث للواجهة الرئيسية بدون التسبب في تجمد البرنامج
+            self.after(0, prompt_and_apply_update)
+
+    except Exception as e:
+        print(f"خطأ أثناء فحص تحديث البيانات: {e}")
     
     
     
@@ -1067,7 +1107,7 @@ class SwiftFolderPro(ctk.CTk):
         # نسخة البرنامج
         self.version_label = ctk.CTkLabel(
             logo_frame,
-            text="v1.0.5",
+            text="v1.0.1",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=COLORS["text_muted"]
         )
