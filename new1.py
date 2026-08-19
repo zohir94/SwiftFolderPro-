@@ -934,92 +934,92 @@ class SwiftFolderPro(ctk.CTk):
 
 
     def check_for_data_updates(self):
-    """
-    تفحص هذه الدالة وجود تحديثات لملف الزبائن أونلاين، بالإضافة إلى مزامنة الملفات من Supabase
-    (معدلة للعمل بأمان تام داخل الـ Thread الخلفي)
-    """
-    # -------------------------------------------------------------
-    # الجزء الأول: مزامنة الملفات السحابية من Supabase
-    # -------------------------------------------------------------
-    try:
-        # تحديد مجلد حفظ الملفات المحلي (مثلاً مجلد اسمه files)
-        local_folder = os.path.join(os.getcwd(), "files")
-        if not os.path.exists(local_folder):
-            os.makedirs(local_folder)
-        
-        # استدعاء دالة المزامنة السحابية للملفات بأمان
-        if hasattr(self, 'check_and_sync_files'):
-            self.check_and_sync_files(local_folder)
-        elif 'check_and_sync_files' in globals():
-            check_and_sync_files(local_folder)
-    except Exception as e:
-        print(f"خطأ أثناء مزامنة ملفات Supabase: {e}")
-
-    # -------------------------------------------------------------
-    # الجزء الثاني: فحص تحديث قائمة الزبائن والإصدار (GitHub)
-    # -------------------------------------------------------------
-    VERSION_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/data_version.txt"
-    CUSTOMERS_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/customers.txt"
-    
-    local_version_file = "local_data_version.txt"
-    local_customers_file = "customers.txt"
-
-    local_version = "0"
-    if os.path.exists(local_version_file):
+        """
+        تفحص هذه الدالة وجود تحديثات لملف الزبائن أونلاين، بالإضافة إلى مزامنة الملفات من Supabase
+        (معدلة للعمل بأمان تام داخل الـ Thread الخلفي)
+        """
+        # -------------------------------------------------------------
+        # الجزء الأول: مزامنة الملفات السحابية من Supabase
+        # -------------------------------------------------------------
         try:
-            with open(local_version_file, "r", encoding="utf-8") as f:
-                local_version = f.read().strip()
-        except:
-            local_version = "0"
-
-    try:
-        req = urllib.request.Request(VERSION_URL, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=5) as response:
-            online_version = response.read().decode('utf-8').strip()
-
-        if online_version != local_version:
+            # تحديد مجلد حفظ الملفات المحلي (مثلاً مجلد اسمه files)
+            local_folder = os.path.join(os.getcwd(), "files")
+            if not os.path.exists(local_folder):
+                os.makedirs(local_folder)
             
-            # 🎯 دالة داخلية للتعامل مع الواجهة والتنبيهات بأمان من الخيط الرئيسي
-            def prompt_and_apply_update():
-                user_agree = messagebox.askyesno(
-                    "تحديث البيانات", 
-                    "هناك تغيير في قائمة الزبائن .\n\nهل ترغب في التحميل الآن؟"
-                )
+            # استدعاء دالة المزامنة السحابية للملفات بأمان
+            if hasattr(self, 'check_and_sync_files'):
+                self.check_and_sync_files(local_folder)
+            elif 'check_and_sync_files' in globals():
+                check_and_sync_files(local_folder)
+        except Exception as e:
+            print(f"خطأ أثناء مزامنة ملفات Supabase: {e}")
+    
+        # -------------------------------------------------------------
+        # الجزء الثاني: فحص تحديث قائمة الزبائن والإصدار (GitHub)
+        # -------------------------------------------------------------
+        VERSION_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/data_version.txt"
+        CUSTOMERS_URL = "https://raw.githubusercontent.com/zohir94/SwiftFolderPro-/refs/heads/main/customers.txt"
+        
+        local_version_file = "local_data_version.txt"
+        local_customers_file = "customers.txt"
+    
+        local_version = "0"
+        if os.path.exists(local_version_file):
+            try:
+                with open(local_version_file, "r", encoding="utf-8") as f:
+                    local_version = f.read().strip()
+            except:
+                local_version = "0"
+    
+        try:
+            req = urllib.request.Request(VERSION_URL, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                online_version = response.read().decode('utf-8').strip()
+    
+            if online_version != local_version:
                 
-                if user_agree:
-                    # تنشيط تنزيل بيانات الزبائن الجدد
-                    def download_data():
-                        try:
-                            cust_req = urllib.request.Request(CUSTOMERS_URL, headers={'User-Agent': 'Mozilla/5.0'})
-                            with urllib.request.urlopen(cust_req, timeout=5) as resp:
-                                new_customers_data = resp.read().decode('utf-8')
-                            
-                            with open(local_customers_file, "w", encoding="utf-8") as f:
-                                f.write(new_customers_data)
-                            
-                            with open(local_version_file, "w", encoding="utf-8") as f:
-                                f.write(online_version)
-                            
-                            # تحديث الواجهة والجدول بأمان
-                            def on_success():
-                                messagebox.showinfo("نجاح", "تم التحديث بنجاح")
-                                if hasattr(self, 'update_customer_list'):
-                                    self.update_customer_list()
-                                if hasattr(self, 'apply_filter'):
-                                    self.apply_filter()
-                            
-                            self.after(0, on_success)
-                        except Exception as ex:
-                            print(f"خطأ أثناء تحميل ملف الزبائن: {ex}")
-
-                    # تشغيل التحميل في خيط فرعي خفيف لتفادي تجميد الواجهة أثناء التنزيل
-                    threading.Thread(target=download_data, daemon=True).start()
-
-            # 🚀 إرسال طلب التحديث للواجهة الرئيسية بدون التسبب في تجمد البرنامج
-            self.after(0, prompt_and_apply_update)
-
-    except Exception as e:
-        print(f"خطأ أثناء فحص تحديث البيانات: {e}")
+                # 🎯 دالة داخلية للتعامل مع الواجهة والتنبيهات بأمان من الخيط الرئيسي
+                def prompt_and_apply_update():
+                    user_agree = messagebox.askyesno(
+                        "تحديث البيانات", 
+                        "هناك تغيير في قائمة الزبائن .\n\nهل ترغب في التحميل الآن؟"
+                    )
+                    
+                    if user_agree:
+                        # تنشيط تنزيل بيانات الزبائن الجدد
+                        def download_data():
+                            try:
+                                cust_req = urllib.request.Request(CUSTOMERS_URL, headers={'User-Agent': 'Mozilla/5.0'})
+                                with urllib.request.urlopen(cust_req, timeout=5) as resp:
+                                    new_customers_data = resp.read().decode('utf-8')
+                                
+                                with open(local_customers_file, "w", encoding="utf-8") as f:
+                                    f.write(new_customers_data)
+                                
+                                with open(local_version_file, "w", encoding="utf-8") as f:
+                                    f.write(online_version)
+                                
+                                # تحديث الواجهة والجدول بأمان
+                                def on_success():
+                                    messagebox.showinfo("نجاح", "تم التحديث بنجاح")
+                                    if hasattr(self, 'update_customer_list'):
+                                        self.update_customer_list()
+                                    if hasattr(self, 'apply_filter'):
+                                        self.apply_filter()
+                                
+                                self.after(0, on_success)
+                            except Exception as ex:
+                                print(f"خطأ أثناء تحميل ملف الزبائن: {ex}")
+    
+                        # تشغيل التحميل في خيط فرعي خفيف لتفادي تجميد الواجهة أثناء التنزيل
+                        threading.Thread(target=download_data, daemon=True).start()
+    
+                # 🚀 إرسال طلب التحديث للواجهة الرئيسية بدون التسبب في تجمد البرنامج
+                self.after(0, prompt_and_apply_update)
+    
+        except Exception as e:
+            print(f"خطأ أثناء فحص تحديث البيانات: {e}")
     
     
     
